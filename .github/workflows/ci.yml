@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "copilot/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pacer
+          POSTGRES_PASSWORD: pacer
+          POSTGRES_DB: pacer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://pacer:pacer@localhost:5432/pacer
+      DATABASE_URL_SYNC: postgresql+psycopg2://pacer:pacer@localhost:5432/pacer
+      PACER_USERNAME: test_user
+      PACER_PASSWORD: test_pass
+      OPENAI_API_KEY: sk-test
+      LLC_ENTITY: "1COMMERCE LLC"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Lint with Ruff
+        run: poetry run ruff check src/ tests/
+
+      - name: Format check with Black
+        run: poetry run black --check src/ tests/
+
+      - name: Run tests
+        run: poetry run pytest tests/ -v --tb=short
