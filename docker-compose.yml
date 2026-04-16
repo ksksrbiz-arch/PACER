@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pacer
+      POSTGRES_PASSWORD: pacer
+      POSTGRES_DB: pacer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pacer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pacer:pacer@db:5432/pacer
+      DATABASE_URL_SYNC: postgresql+psycopg2://pacer:pacer@db:5432/pacer
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  pgdata:
