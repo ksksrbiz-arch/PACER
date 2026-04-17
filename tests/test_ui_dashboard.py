@@ -8,10 +8,10 @@ These don't hit the DB or any live API — they verify:
      (no secret values exposed, no exceptions).
   5. show_vps_link() and show_deploy_flow() render without raising.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from pacer.models.domain_candidate import Status
 
 
@@ -33,7 +33,6 @@ def test_dashboard_imports_cleanly():
 def test_dev_cli_wires_new_commands():
     """`pacer dev --help` must list the three new subcommands."""
     from click.testing import CliRunner
-
     from pacer.main import cli
 
     runner = CliRunner()
@@ -46,7 +45,6 @@ def test_dev_cli_wires_new_commands():
 def test_dev_monetize_rejects_invalid_tier():
     """Click should reject any tier outside the 5 known router profiles."""
     from click.testing import CliRunner
-
     from pacer.main import cli
 
     runner = CliRunner()

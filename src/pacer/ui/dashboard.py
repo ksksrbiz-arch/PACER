@@ -303,11 +303,7 @@ def show_config_summary() -> None:
         return "[green]✓ set[/green]" if raw else "[dim]— not set —[/dim]"
 
     def _toggle(flag: bool) -> str:
-        return (
-            "[bold bright_green]ON[/bold bright_green]"
-            if flag
-            else "[bold red]OFF[/bold red]"
-        )
+        return "[bold bright_green]ON[/bold bright_green]" if flag else "[bold red]OFF[/bold red]"
 
     def _section(title: str, rows: list[tuple[str, str]]) -> Table:
         tbl = Table(title=title, box=box.SIMPLE, show_header=False, title_justify="left")
@@ -672,9 +668,7 @@ async def show_health_check() -> None:
         for key_name, value, required in keys:
             status_markup, detail = _key_status(value, required=required)
             tbl.add_row(key_name, status_markup, detail)
-        panels.append(
-            Panel(tbl, title=f"[bold]{service_name}[/bold]", border_style="cyan")
-        )
+        panels.append(Panel(tbl, title=f"[bold]{service_name}[/bold]", border_style="cyan"))
 
     console.print(Columns(panels[:2], equal=True, expand=True))
     console.print(Columns(panels[2:], equal=True, expand=True))
@@ -691,8 +685,7 @@ async def monetize_dry_run(domain: str, tier: str, persist: bool = False) -> Non
     if tier not in TIER_PROFILES:
         console.print(f"[bold red]Unknown tier:[/bold red] {tier}")
         console.print(
-            "  Available: "
-            + ", ".join(f"[cyan]{t}[/cyan]" for t in sorted(TIER_PROFILES.keys()))
+            "  Available: " + ", ".join(f"[cyan]{t}[/cyan]" for t in sorted(TIER_PROFILES.keys()))
         )
         return
 
@@ -776,11 +769,7 @@ async def show_partners_summary() -> None:
 
     async with session_scope() as sess:
         partners = list(
-            (
-                await sess.execute(
-                    select(Partner).order_by(Partner.legal_name.asc())
-                )
-            ).scalars().all()
+            (await sess.execute(select(Partner).order_by(Partner.legal_name.asc()))).scalars().all()
         )
 
         # Aggregate YTD totals per partner / status.
@@ -854,11 +843,7 @@ async def show_partners_summary() -> None:
             cta_cell = "[bright_green]✓[/bright_green]"
 
         nec_required = total >= 60_000  # $600 in cents
-        nec_cell = (
-            "[bold yellow]REQUIRED[/bold yellow]"
-            if nec_required
-            else "[dim]—[/dim]"
-        )
+        nec_cell = "[bold yellow]REQUIRED[/bold yellow]" if nec_required else "[dim]—[/dim]"
 
         w9_cell = (
             "[bright_green]✓[/bright_green]"
