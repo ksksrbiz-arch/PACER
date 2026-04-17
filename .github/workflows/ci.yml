@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pacer
+          POSTGRES_PASSWORD: pacer
+          POSTGRES_DB: pacer
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pacer"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://pacer:pacer@localhost:5432/pacer
+      SYNC_DATABASE_URL: postgresql://pacer:pacer@localhost:5432/pacer
+      REDIS_URL: redis://localhost:6379/0
+      LLC_ENTITY: "1COMMERCE LLC"
+      ENVIRONMENT: ci
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install Poetry
+        run: pipx install poetry==1.8.3
+      - name: Install deps
+        run: poetry install --with dev --no-interaction
+      - name: Lint
+        run: |
+          poetry run ruff check src tests
+          poetry run black --check src tests
+      - name: Migrate
+        run: poetry run alembic upgrade head
+      - name: Test
+        run: poetry run pytest --cov=pacer --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml
