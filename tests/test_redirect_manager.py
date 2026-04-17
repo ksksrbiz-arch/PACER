@@ -1,136 +1,145 @@
 """
-Tests for src/monetization/redirect_manager.py
+Tests for pacer/monetization/redirect_engine.py — topic routing + 301 redirect configuration.
 """
+from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.models.domain import DomainCandidate
-from src.monetization.redirect_manager import PRIMARY_HUB, RedirectManager
+from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
+from pacer.monetization.redirect_engine import (
+    PRIMARY_HUB,
+    build_redirect_target,
+    configure_redirect,
+)
+
+
+def _candidate(domain: str, score: float = 80.0) -> DomainCandidate:
+    return DomainCandidate(
+        domain=domain,
+        source=PipelineSource.SOS_DISSOLUTION,
+        status=Status.CAUGHT,
+        score=score,
+    )
+
 
 # ---------------------------------------------------------------------------
-# _build_target_url — topic routing
+# build_redirect_target — topic routing
 # ---------------------------------------------------------------------------
 
 
 def test_redirect_crm_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("bestcrm.io", 85.0)
-    assert url == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
+    assert build_redirect_target("bestcrm.io") == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
 
 
 def test_redirect_sales_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("salesboost.com", 80.0)
-    assert url == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
+    assert build_redirect_target("salesboost.com") == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
 
 
 def test_redirect_project_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("projecthub.io", 70.0)
+    url = build_redirect_target("projecthub.io")
     assert url == f"{PRIMARY_HUB}/resources/saas-alternatives/project-management"
 
 
 def test_redirect_ecommerce_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("mystore.com", 75.0)
-    assert url == f"{PRIMARY_HUB}/marketplace"
+    assert build_redirect_target("mystore.com") == f"{PRIMARY_HUB}/marketplace"
 
 
 def test_redirect_saas_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("cloudplatform.io", 80.0)
-    assert url == f"{PRIMARY_HUB}/alternatives"
+    assert build_redirect_target("cloudplatform.io") == f"{PRIMARY_HUB}/alternatives"
 
 
 def test_redirect_educational_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("learnfast.io", 65.0)
-    assert url == f"{PRIMARY_HUB}/learn"
+    assert build_redirect_target("learnfast.io") == f"{PRIMARY_HUB}/learn"
 
 
 def test_redirect_finance_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("invoicemaster.com", 70.0)
+    url = build_redirect_target("invoicemaster.com")
     assert url == f"{PRIMARY_HUB}/resources/saas-alternatives/finance"
 
 
 def test_redirect_tool_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("builderapp.io", 62.0)
-    assert url == f"{PRIMARY_HUB}/tools"
+    assert build_redirect_target("builderapp.io") == f"{PRIMARY_HUB}/tools"
 
 
 def test_redirect_global_keyword():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("globaltrading.com", 65.0)
-    assert url == f"{PRIMARY_HUB}/global"
+    assert build_redirect_target("globaltrading.com") == f"{PRIMARY_HUB}/global"
 
 
 def test_redirect_unmatched_falls_back_to_resources():
-    mgr = RedirectManager()
-    url = mgr._build_target_url("xyzqwerty123.com", 70.0)
-    assert url == f"{PRIMARY_HUB}/resources"
+    assert build_redirect_target("xyzqwerty123.com") == f"{PRIMARY_HUB}/resources"
 
 
 # ---------------------------------------------------------------------------
-# setup_301_redirect — full method
+# configure_redirect — full function
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_setup_redirect_returns_none_for_no_domain():
-    mgr = RedirectManager()
-    candidate = DomainCandidate(company_name="NoDomainCo", domain=None, seo_score=80.0)
-    result = await mgr.setup_301_redirect(candidate)
-    assert result is None
+async def test_configure_redirect_sets_fields():
+    """configure_redirect should set redirect_target, monetization_strategy, status."""
+    c = _candidate("crmcorp.io")
 
+    async def noop_cf(domain, target):
+        return None
 
-@pytest.mark.asyncio
-async def test_setup_redirect_returns_target_url():
-    mgr = RedirectManager()
-    candidate = DomainCandidate(
-        company_name="CRM Corp", domain="crmcorp.io", seo_score=85.0
-    )
-    with patch.object(mgr, "_apply_cloudflare_rule", new_callable=AsyncMock) as mock_cf:
-        result = await mgr.setup_301_redirect(candidate)
+    async def noop_audit(**kwargs):
+        return None
 
-    assert result is not None
-    assert result.startswith("https://1commercesolutions.com")
-    mock_cf.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_setup_redirect_survives_cloudflare_failure():
-    """A Cloudflare error should not raise — redirect target is still returned."""
-    mgr = RedirectManager()
-    candidate = DomainCandidate(
-        company_name="SomeSaaS", domain="somesaas.io", seo_score=75.0
-    )
-    with patch.object(
-        mgr, "_apply_cloudflare_rule", new_callable=AsyncMock, side_effect=Exception("CF error")
+    with (
+        patch("pacer.monetization.redirect_engine._apply_cloudflare_rule", new=noop_cf),
+        patch("pacer.monetization.redirect_engine.record_event", new=noop_audit),
     ):
-        result = await mgr.setup_301_redirect(candidate)
+        result = await configure_redirect(c)
 
-    assert result is not None
+    assert result is c
+    assert result.redirect_target is not None
+    assert result.redirect_target.startswith("https://1commercesolutions.com")
+    assert result.monetization_strategy == "301_redirect"
+    assert result.status == Status.MONETIZED
 
 
 @pytest.mark.asyncio
-async def test_setup_batch_returns_mapping():
-    mgr = RedirectManager()
-    candidates = [
-        DomainCandidate(company_name="CRM Co", domain="crmco.io", seo_score=85.0),
-        DomainCandidate(company_name="No Domain", domain=None, seo_score=70.0),
-    ]
-    with patch.object(mgr, "_apply_cloudflare_rule", new_callable=AsyncMock):
-        results = await mgr.setup_batch(candidates)
+async def test_configure_redirect_explicit_target():
+    """Explicit target_url must be used instead of auto-routing."""
+    c = _candidate("anything.com")
+    explicit = "https://1commercesolutions.com/specials"
 
-    assert "crmco.io" in results
-    assert results["crmco.io"] is not None
-    assert results["crmco.io"].startswith("https://1commercesolutions.com")
-    # candidate with no domain falls back to company_name as key
-    assert results.get("No Domain") is None
+    async def noop_cf(domain, target):
+        return None
+
+    async def noop_audit(**kwargs):
+        return None
+
+    with (
+        patch("pacer.monetization.redirect_engine._apply_cloudflare_rule", new=noop_cf),
+        patch("pacer.monetization.redirect_engine.record_event", new=noop_audit),
+    ):
+        result = await configure_redirect(c, target_url=explicit)
+
+    assert result.redirect_target == explicit
+
+
+@pytest.mark.asyncio
+async def test_configure_redirect_survives_cloudflare_failure():
+    """Cloudflare errors must not propagate — candidate is still updated."""
+    c = _candidate("somesaas.io")
+
+    async def noop_audit(**kwargs):
+        return None
+
+    with (
+        patch(
+            "pacer.monetization.redirect_engine._apply_cloudflare_rule",
+            new=AsyncMock(side_effect=Exception("CF error")),
+        ),
+        patch("pacer.monetization.redirect_engine.record_event", new=noop_audit),
+    ):
+        result = await configure_redirect(c)
+
+    assert result.redirect_target is not None
+    assert result.status == Status.MONETIZED
 
 
 # ---------------------------------------------------------------------------
@@ -140,14 +149,12 @@ async def test_setup_batch_returns_mapping():
 
 @pytest.mark.asyncio
 async def test_apply_cloudflare_rule_skips_without_token(monkeypatch):
-    """When CLOUDFLARE_API_TOKEN is empty, the method logs and returns without HTTP call."""
-    from src import config as cfg_module
+    """When cloudflare_api_token is empty, the function returns without HTTP calls."""
+    from pacer.config import get_settings
+    from pacer.monetization.redirect_engine import _apply_cloudflare_rule
 
-    original = cfg_module.Config.CLOUDFLARE_API_TOKEN
-    monkeypatch.setattr(cfg_module.Config, "CLOUDFLARE_API_TOKEN", "")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "cloudflare_api_token", __import__("pydantic").SecretStr(""))
 
-    mgr = RedirectManager()
-    # Should not raise even with no HTTP client
-    await mgr._apply_cloudflare_rule.__wrapped__(mgr, "example.com", "https://target.com")
-
-    monkeypatch.setattr(cfg_module.Config, "CLOUDFLARE_API_TOKEN", original)
+    # Should not raise
+    await _apply_cloudflare_rule("example.com", "https://1commercesolutions.com/resources")

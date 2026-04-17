@@ -1,5 +1,8 @@
 version: "3.9"
 
+# Production compose file for PACER.
+# Use with:  docker compose -f docker-compose.prod.yml up -d
+
 services:
   db:
     image: postgres:16-alpine
@@ -16,6 +19,12 @@ services:
       timeout: 10s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redisdata_prod:/data
+
   app:
     build:
       context: .
@@ -23,9 +32,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     env_file: .env
     environment:
-      ENV: production
+      ENVIRONMENT: production
     volumes:
       - ./logs:/app/logs
     restart: always
@@ -37,3 +48,4 @@ services:
 
 volumes:
   pgdata_prod:
+  redisdata_prod:

@@ -1,125 +1,80 @@
-# PACER
+# PACER — Distressed-Domain Arbitrage & RWA Tokenization
 
-**1COMMERCE LLC DomainFi / RWA Platform**
+**Operating entity:** 1COMMERCE LLC (Canby, OR)
+**Status:** Production-grade scaffold, deployment-ready.
 
-Automated daily pipeline: PACER scraper → distressed SaaS/tech domain discovery → SEO scoring → drop-catch → Doma RWA tokenization → Securitize settlement → 301 arbitrage.
+PACER runs a daily pipeline that:
 
-**Status**: Production-ready (April 2026) · Full API resilience · Compliance logging · Hostinger OpenClaw VPS deployment
+1. Discovers distressed SaaS/tech domains from PACER/RECAP, state SOS dissolutions, EDGAR filings, USPTO abandonments, UCC liens, and probate asset sales.
+2. Enriches company records → resolves active domains.
+3. Scores SEO equity via Ahrefs + topical relevance via GPT-4o.
+4. Catches premium domains during the pending-delete window via multi-registrar backorder (Dynadot primary, DropCatch/NameJet/GoDaddy fallbacks).
+5. Tokenizes qualifying domains as RWAs (Doma DOT/DST) with Securitize hybrid settlement to preserve Oregon DFR money-transmitter exemption.
+6. Monetizes via 301 redirects, competitor arbitrage outreach, parking/affiliate, yield stacking, and fractional sales.
+
+All records are tagged `llc_entity="1COMMERCE LLC"` for audit compliance.
 
 ---
+
+## Quick start
+
+```bash
+git clone git@github.com:ksksrbiz-arch/PACER.git pacer && cd pacer
+cp .env.example .env              # fill in secrets
+make deploy-prep                  # builds, runs migrations
+make docker-up                    # starts postgres + redis + pacer daemon
+make docker-logs                  # tails the scheduler
+```
 
 ## Architecture
 
 ```
-PACER PCL / RECAP
-      │
-      ▼
-Domain Enrichment  (Clearbit → Hunter → Google)
-      │
-      ▼
-SEO Scoring        (Ahrefs DR + GPT-4o topical relevance)
-      │  ≥ 60
-      ▼
-Drop-Catch         (Dynadot + DropCatch + NameJet)
-      │
-      ▼
-RWA Tokenization   (Doma DOT/DST minting)
-      │
-      ▼
-Settlement         (Securitize hybrid — DFR exemption)
-      │
-      ▼
-301 Arbitrage / Parking / Aftermarket
+src/pacer/
+├── main.py               # APScheduler entrypoint + resilience hooks
+├── config.py             # Pydantic settings with LLC tagging
+├── db.py                 # Async + sync engines
+├── models/               # DomainCandidate, ComplianceLog
+├── pipelines/            # 6 discovery pipelines, AsyncIO parallel
+├── pacer/pacer_client.py # PCL + RECAP with deep error handling
+├── utils/api_resilience.py
+├── scoring/              # Ahrefs batch + spam filter + GPT-4o relevance
+├── enrichment/           # company → domain resolution
+├── dropcatch/            # multi-registrar orchestrator
+├── rwa/                  # Doma + Securitize hybrid settlement
+├── monetization/         # 301, parking, outreach
+└── compliance/           # audit log, LLC tagging, KYC hooks
 ```
 
-All runs are compliance-logged under **1COMMERCE LLC** (Canby, Oregon) for DFR opinion letter, Koinly/8949 tax export, and business license renewal.
+## Pipelines
 
----
+| # | Source                                      | Cadence | Module                              |
+|---|---------------------------------------------|---------|-------------------------------------|
+| 1 | PACER PCL + CourtListener RECAP             | Daily   | `pipelines/pacer_recap.py`          |
+| 2 | State SOS Dissolutions (OR, CA, DE, NY, TX) | Daily   | `pipelines/sos_dissolutions.py`     |
+| 3 | EDGAR Distressed Public Companies           | Daily   | `pipelines/edgar.py`                |
+| 4 | USPTO Abandoned Trademarks                  | Daily   | `pipelines/uspto.py`                |
+| 5 | UCC Liens & Judgment Distress               | Daily   | `pipelines/ucc_liens.py`            |
+| 6 | Probate / Estate Asset Sales                | Daily   | `pipelines/probate.py`              |
 
-## Quick Start
+All run inside a single `asyncio.gather` call. Failures are isolated per pipeline via the resilience decorator — one broken source does not halt the others.
 
-```bash
-# 1. Clone and configure
-cp .env.example .env
-# Edit .env with your PACER credentials, API keys, etc.
+## Scoring thresholds
 
-# 2. Install dependencies
-make install          # or: poetry install
+- **≥ 60** → drop-catch + RWA candidate
+- **40–59** → parking / instant-flip candidate
+- **< 40** → discarded (log only)
 
-# 3. Apply database migrations
-make migrate          # or: poetry run alembic upgrade head
+## Compliance posture
 
-# 4. Run once manually
-make run
+- Every API call logged to `compliance_log` with LLC tag, timestamp, endpoint, and status.
+- RWA settlement routed through Securitize (or Doma custody) → Oregon DFR money-transmitter exemption path.
+- KYC/AML hooks wired for Securitize integration before first fractional sale.
+- Attorney opinion letter template available under `docs/dfr-exemption-opinion.md` (add before first tokenization).
 
-# 5. Start scheduled daemon (3 AM UTC daily)
-poetry run pacer-run
-```
+## Operating runbook
 
-### Docker (recommended for VPS)
-
-```bash
-docker-compose up -d        # dev stack (Postgres + app)
-# or for production:
-docker-compose -f docker-compose.prod.yml up -d
-```
-
----
-
-## Environment Variables
-
-See [`.env.example`](.env.example) for the full list. Key variables:
-
-| Variable | Description |
-|---|---|
-| `PACER_USERNAME` / `PACER_PASSWORD` | PACER PCL API credentials |
-| `OPENAI_API_KEY` | GPT-4o topical scoring |
-| `AHREFS_API_KEY` | Ahrefs domain rating |
-| `DOMA_API_KEY` | RWA tokenization |
-| `SECURITIZE_API_KEY` | DFR-exempt settlement |
-| `DYNADOT_API_KEY` / `DROPCATCH_API_KEY` | Drop-catch registrars |
-| `SLACK_WEBHOOK_URL` | Pipeline alerts |
-| `DATABASE_URL` | Postgres (asyncpg) |
-| `SCORE_THRESHOLD` | Minimum score for drop-catch/RWA (default: 60) |
-
----
-
-## Module Overview
-
-| Module | Purpose |
-|---|---|
-| `src/pacer/` | PCL + RECAP scraper (Chapter 7/11, tech keywords) |
-| `src/enrichment/` | Company name → primary domain resolution |
-| `src/scoring/` | Ahrefs DR + GPT-4o composite score |
-| `src/dropcatch/` | Dynadot / DropCatch / NameJet backorder |
-| `src/rwa/` | Doma tokenization + Securitize settlement |
-| `src/compliance/` | Audit trail for 1COMMERCE LLC |
-| `src/alerts/` | Slack pipeline notifications |
-| `src/utils/` | Shared resilience (retry + circuit breaker) |
-
----
-
-## Resilience & Compliance
-
-- **Retry policy**: Exponential backoff + jitter (up to 5 attempts, max 60 s)
-- **Circuit breaker**: 3 failures → 5-minute pause per endpoint
-- **Fallback chain**: PCL → RECAP → empty list (pipeline never hard-fails)
-- **Retry-After**: Respected for 429 responses
-- **Auth drift**: 401 errors logged as critical alerts
-- **Compliance logs**: Every run tagged `entity=1COMMERCE LLC` for DFR / tax / Canby license
-
----
-
-## Development
-
-```bash
-make lint     # Ruff + Black checks
-make fmt      # Auto-format
-make test     # pytest
-```
-
----
+See `SETUP.md` for VPS deploy, Alembic, Prometheus, and DFR exemption steps.
 
 ## License
 
-MIT — © 2026 1COMMERCE LLC
+Proprietary — all rights reserved, 1COMMERCE LLC.

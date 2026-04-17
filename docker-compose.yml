@@ -1,34 +1,42 @@
 version: "3.9"
 
 services:
-  db:
+  postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: pacer
       POSTGRES_PASSWORD: pacer
       POSTGRES_DB: pacer
-    ports:
-      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pacer_pg:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pacer"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  app:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - pacer_redis:/data
+
+  pacer:
     build: .
-    depends_on:
-      db:
-        condition: service_healthy
+    image: pacer:latest
+    restart: unless-stopped
     env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://pacer:pacer@db:5432/pacer
-      DATABASE_URL_SYNC: postgresql+psycopg2://pacer:pacer@db:5432/pacer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./logs:/app/logs
-    restart: unless-stopped
+    command: ["python", "-m", "pacer.main"]
 
 volumes:
-  pgdata:
+  pacer_pg:
+  pacer_redis:

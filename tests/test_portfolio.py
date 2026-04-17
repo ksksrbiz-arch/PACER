@@ -1,13 +1,31 @@
 """
-Tests for src/portfolio/portfolio_manager.py
+Tests for pacer/portfolio/portfolio_manager.py and pacer/models/domain_portfolio.py
 """
+from __future__ import annotations
 
 from datetime import date, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.models.domain import DomainCandidate, DomainPortfolio
-from src.portfolio.portfolio_manager import PortfolioManager
+from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
+from pacer.models.domain_portfolio import DomainPortfolio
+from pacer.portfolio.portfolio_manager import PortfolioManager
+
+
+def _candidate(
+    domain: str,
+    score: float = 70.0,
+    company_name: str = "Test Co",
+) -> DomainCandidate:
+    return DomainCandidate(
+        domain=domain,
+        company_name=company_name,
+        source=PipelineSource.SOS_DISSOLUTION,
+        status=Status.CAUGHT,
+        score=score,
+    )
+
 
 # ---------------------------------------------------------------------------
 # add_from_candidate
@@ -17,10 +35,13 @@ from src.portfolio.portfolio_manager import PortfolioManager
 @pytest.mark.asyncio
 async def test_add_from_candidate_basic():
     mgr = PortfolioManager()
-    candidate = DomainCandidate(
-        company_name="Acme SaaS", domain="acmesaas.io", seo_score=72.0
-    )
-    entry = await mgr.add_from_candidate(candidate)
+    candidate = _candidate("acmesaas.io", score=72.0, company_name="Acme SaaS")
+
+    async def noop(**kwargs):
+        return None
+
+    with patch("pacer.portfolio.portfolio_manager.record_event", new=noop):
+        entry = await mgr.add_from_candidate(candidate)
 
     assert entry.domain == "acmesaas.io"
     assert entry.status == "pending"
@@ -31,10 +52,14 @@ async def test_add_from_candidate_basic():
 @pytest.mark.asyncio
 async def test_add_from_candidate_valuation_estimate():
     mgr = PortfolioManager()
-    candidate = DomainCandidate(
-        company_name="HighScore Corp", domain="highscore.io", seo_score=90.0
-    )
-    entry = await mgr.add_from_candidate(candidate)
+    candidate = _candidate("highscore.io", score=90.0, company_name="HighScore Corp")
+
+    async def noop(**kwargs):
+        return None
+
+    with patch("pacer.portfolio.portfolio_manager.record_event", new=noop):
+        entry = await mgr.add_from_candidate(candidate)
+
     # Valuation = score * 100, capped at 50_000
     assert entry.current_valuation_usd == 9000.0
 
@@ -43,24 +68,34 @@ async def test_add_from_candidate_valuation_estimate():
 async def test_add_from_candidate_valuation_capped():
     """Domains with very high synthetic scores should not exceed the cap."""
     mgr = PortfolioManager()
-    candidate = DomainCandidate(
-        company_name="Mega Corp", domain="mega.io", seo_score=999.0
-    )
-    entry = await mgr.add_from_candidate(candidate)
+    candidate = _candidate("mega.io", score=999.0, company_name="Mega Corp")
+
+    async def noop(**kwargs):
+        return None
+
+    with patch("pacer.portfolio.portfolio_manager.record_event", new=noop):
+        entry = await mgr.add_from_candidate(candidate)
+
     assert entry.current_valuation_usd == 50_000.0
 
 
 @pytest.mark.asyncio
 async def test_add_from_candidate_records_redirect_and_strategy():
     mgr = PortfolioManager()
-    candidate = DomainCandidate(company_name="CRM Co", domain="crm.io", seo_score=80.0)
-    entry = await mgr.add_from_candidate(
-        candidate,
-        redirect_target="https://1commercesolutions.com/resources/saas-alternatives/crm",
-        monetization_strategy="301_redirect",
-        purchase_price_usd=299.0,
-        registrar="Dynadot",
-    )
+    candidate = _candidate("crm.io", score=80.0, company_name="CRM Co")
+
+    async def noop(**kwargs):
+        return None
+
+    with patch("pacer.portfolio.portfolio_manager.record_event", new=noop):
+        entry = await mgr.add_from_candidate(
+            candidate,
+            redirect_target="https://1commercesolutions.com/resources/saas-alternatives/crm",
+            monetization_strategy="301_redirect",
+            purchase_price_usd=299.0,
+            registrar="Dynadot",
+        )
+
     assert entry.redirect_target is not None
     assert "crm" in entry.redirect_target
     assert entry.monetization_strategy == "301_redirect"
@@ -73,8 +108,15 @@ async def test_add_from_candidate_records_redirect_and_strategy():
 # ---------------------------------------------------------------------------
 
 
-def _make_entry(domain: str, status: str = "active", valuation: float = 1000.0, score: float = 70.0) -> DomainPortfolio:
-    return DomainPortfolio(domain=domain, status=status, current_valuation_usd=valuation, seo_score=score)
+def _make_entry(
+    domain: str,
+    status: str = "active",
+    valuation: float = 1000.0,
+    score: float = 70.0,
+) -> DomainPortfolio:
+    return DomainPortfolio(
+        domain=domain, status=status, current_valuation_usd=valuation, seo_score=score
+    )
 
 
 def test_compute_portfolio_summary_empty():
@@ -133,7 +175,7 @@ def test_find_expiring_soon_skips_missing_renewal_date():
     assert len(result) == 0
 
 
-def test_find_expiring_soon_handles_invalid_date(caplog):
+def test_find_expiring_soon_handles_invalid_date():
     mgr = PortfolioManager()
     entries = [DomainPortfolio(domain="bad.io", renewal_date="not-a-date")]
     result = mgr.find_expiring_soon(entries, days=30)

@@ -1,44 +1,45 @@
-.DEFAULT_GOAL := help
-
-.PHONY: help install lint fmt test run migrate docker-up docker-down
-
-help:
-	@echo "PACER — 1COMMERCE LLC DomainFi / RWA Platform"
-	@echo ""
-	@echo "Usage:"
-	@echo "  make install      Install dependencies (poetry)"
-	@echo "  make lint         Run Ruff + Black checks"
-	@echo "  make fmt          Auto-format with Black"
-	@echo "  make test         Run pytest"
-	@echo "  make run          Run the daily pipeline once (manual)"
-	@echo "  make migrate      Apply Alembic migrations"
-	@echo "  make docker-up    Start local dev stack (Postgres + app)"
-	@echo "  make docker-down  Stop local dev stack"
+.PHONY: install fmt lint test run migrate docker-up docker-down deploy-prep clean
 
 install:
 	poetry install
 
-lint:
-	poetry run ruff check src/ tests/
-	poetry run black --check src/ tests/
-
 fmt:
-	poetry run black src/ tests/
+	poetry run black src tests
+	poetry run ruff check --fix src tests
+
+lint:
+	poetry run ruff check src tests
+	poetry run black --check src tests
+	poetry run mypy src
 
 test:
-	poetry run pytest tests/ -v --tb=short
+	poetry run pytest
 
 run:
-	poetry run python -c "\
-import asyncio; \
-from src.pacer.pacer_client import PACERClient; \
-asyncio.run(PACERClient().fetch_yesterday_bankruptcies())"
+	poetry run python -m pacer.main
 
 migrate:
 	poetry run alembic upgrade head
 
+migration:
+	poetry run alembic revision --autogenerate -m "$(m)"
+
 docker-up:
-	docker-compose up -d
+	docker compose up -d --build
 
 docker-down:
-	docker-compose down
+	docker compose down
+
+docker-logs:
+	docker compose logs -f pacer
+
+deploy-prep:
+	@echo "==> PACER :: 1COMMERCE LLC deploy-prep"
+	@test -f .env || (echo "Missing .env — copy from .env.example" && exit 1)
+	docker compose build
+	docker compose run --rm pacer alembic upgrade head
+	@echo "==> Ready. Run: make docker-up"
+
+clean:
+	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage coverage.xml
+	find . -type d -name __pycache__ -exec rm -rf {} +
