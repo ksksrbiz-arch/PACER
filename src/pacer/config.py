@@ -91,6 +91,22 @@ class Settings(BaseSettings):
     parking_api_key: SecretStr = SecretStr("")
     affiliate_default_tag: str = "1commerce-20"
 
+    # ─── Aftermarket listing APIs (auction_bin tier) ─────────────────
+    afternic_api_url: str = "https://api.afternic.com/v2"
+    afternic_api_key: SecretStr = SecretStr("")
+    afternic_partner_id: str = ""  # seller/partner account ID at GoDaddy
+    sedo_api_url: str = "https://api.sedo.com/api/v1"
+    sedo_username: str = ""
+    sedo_signkey: SecretStr = SecretStr("")
+    sedo_partnerid: str = ""
+    dan_api_url: str = "https://api.dan.com/v1"
+    dan_api_key: SecretStr = SecretStr("")
+    # Default BIN price multiplier applied when router doesn't supply one.
+    default_bin_price_cents: int = 299_000  # $2,990
+    # Whether to actually POST to Afternic/Sedo. When False, we log
+    # what we WOULD do (good for staging / shadow-mode).
+    aftermarket_listings_enabled: bool = False
+
     # ─── Cloudflare (automated 301 redirect rules) ────────────────────
     cloudflare_api_token: SecretStr = SecretStr("")
     cloudflare_zone_id: str = ""  # default zone; per-domain lookup is also attempted

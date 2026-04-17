@@ -1,0 +1,176 @@
+{
+  "name": "PACER - Monthly Partner Payouts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-monthly",
+      "name": "Cron: 1st @ 09:00 PT",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Runs at 09:00 America/Los_Angeles on the 1st of every month. n8n instance TZ must be set to PT or adjust cron accordingly (17:00 UTC during PDT, 16:00 during PST)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute period = previous month in YYYY-MM format\nconst now = new Date();\nconst prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst year = prev.getFullYear();\nconst month = String(prev.getMonth() + 1).padStart(2, '0');\nconst period = `${year}-${month}`;\nreturn [{ json: { period, year, month } }];"
+      },
+      "id": "compute-period",
+      "name": "Compute Period (prev month)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd /opt/pacer && /opt/pacer/.venv/bin/pacer partners payout run --period {{ $json.period }}"
+      },
+      "id": "run-payout",
+      "name": "pacer partners payout run",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "Runs the CLI. Writes reports/payouts/<period>/ledger_<period>.csv and 1099nec_<year>.csv. Exit code non-zero aborts the workflow."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the 'Entries: N' and 'Partner total: $X,XXX.XX' lines from stdout.\nconst out = $input.first().json.stdout || '';\nconst period = $('Compute Period (prev month)').first().json.period;\nconst year = $('Compute Period (prev month)').first().json.year;\n\nconst entriesMatch = out.match(/Entries:\\s+(\\d+)/);\nconst totalMatch = out.match(/Partner total:\\s+\\$([0-9,\\.]+)/);\nconst persistedMatch = out.match(/PERSISTED/);\n\nreturn [{\n  json: {\n    period,\n    year,\n    entry_count: entriesMatch ? parseInt(entriesMatch[1], 10) : 0,\n    partner_total_usd: totalMatch ? totalMatch[1] : '0.00',\n    persisted: !!persistedMatch,\n    ledger_csv_path: `/opt/pacer/reports/payouts/${period}/ledger_${period}.csv`,\n    nec_csv_path: `/opt/pacer/reports/payouts/${period}/1099nec_${year}.csv`,\n    raw_stdout: out,\n  }\n}];"
+      },
+      "id": "parse-summary",
+      "name": "Parse CLI Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.ledger_csv_path }}",
+        "options": {
+          "dataPropertyName": "ledger_csv"
+        }
+      },
+      "id": "read-ledger-csv",
+      "name": "Read Ledger CSV",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.nec_csv_path }}",
+        "options": {
+          "dataPropertyName": "nec_csv"
+        }
+      },
+      "id": "read-nec-csv",
+      "name": "Read 1099-NEC CSV",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [1120, 380],
+      "notes": "May not exist if no partners crossed the $600 YTD threshold. Continue-on-fail handles that case."
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL_PACER_OPS }}",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"text\": \"*PACER monthly payouts — {{ $('Parse CLI Summary').first().json.period }}*\\n• Entries: *{{ $('Parse CLI Summary').first().json.entry_count }}*\\n• Partner total: *${{ $('Parse CLI Summary').first().json.partner_total_usd }}*\\n• Persisted: *{{ $('Parse CLI Summary').first().json.persisted ? 'yes' : 'no (dry-run)' }}*\\n• Ledger: `{{ $('Parse CLI Summary').first().json.ledger_csv_path }}`\\n• 1099-NEC: `{{ $('Parse CLI Summary').first().json.nec_csv_path }}`\",\n  \"username\": \"PACER ops\",\n  \"icon_emoji\": \":moneybag:\"\n}"
+      },
+      "id": "slack-summary",
+      "name": "Slack: ops summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "fromEmail": "ops@1commercesolutions.com",
+        "toEmail": "skdev@1commercesolutions.com,partners@1commercesolutions.com",
+        "subject": "=PACER 1099-NEC roster — FY{{ $('Parse CLI Summary').first().json.year }} (period {{ $('Parse CLI Summary').first().json.period }})",
+        "text": "=Automated monthly 1099-NEC roster attached.\n\nPeriod: {{ $('Parse CLI Summary').first().json.period }}\nEntries this period: {{ $('Parse CLI Summary').first().json.entry_count }}\nPartner total: ${{ $('Parse CLI Summary').first().json.partner_total_usd }}\n\nAttachments:\n• ledger_{{ $('Parse CLI Summary').first().json.period }}.csv — this period's payout entries\n• 1099nec_{{ $('Parse CLI Summary').first().json.year }}.csv — YTD non-employee compensation above $600 threshold\n\n— 1COMMERCE LLC ops automation",
+        "options": {
+          "attachments": "ledger_csv,nec_csv",
+          "appendAttribution": false
+        }
+      },
+      "id": "email-1099-roster",
+      "name": "Email 1099-NEC roster",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 300],
+      "notes": "SMTP credentials configured in n8n. Recipients = internal finance + principal engineer. Actual 1099-NEC filing still happens manually via IRS FIRE or Track1099 — this email is the trigger."
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL_PACER_OPS }}",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"text\": \":rotating_light: *PACER payout run FAILED* for period *{{ $('Compute Period (prev month)').first().json.period }}*\\n```\\n{{ $json.error || $json.stderr || 'unknown' }}\\n```\",\n  \"username\": \"PACER ops\",\n  \"icon_emoji\": \":rotating_light:\"\n}"
+      },
+      "id": "slack-failure",
+      "name": "Slack: failure alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 500]
+    }
+  ],
+  "connections": {
+    "Cron: 1st @ 09:00 PT": {
+      "main": [[{ "node": "Compute Period (prev month)", "type": "main", "index": 0 }]]
+    },
+    "Compute Period (prev month)": {
+      "main": [[{ "node": "pacer partners payout run", "type": "main", "index": 0 }]]
+    },
+    "pacer partners payout run": {
+      "main": [[{ "node": "Parse CLI Summary", "type": "main", "index": 0 }]]
+    },
+    "Parse CLI Summary": {
+      "main": [[
+        { "node": "Read Ledger CSV", "type": "main", "index": 0 },
+        { "node": "Read 1099-NEC CSV", "type": "main", "index": 0 }
+      ]]
+    },
+    "Read Ledger CSV": {
+      "main": [[{ "node": "Slack: ops summary", "type": "main", "index": 0 }]]
+    },
+    "Read 1099-NEC CSV": {
+      "main": [[{ "node": "Email 1099-NEC roster", "type": "main", "index": 0 }]]
+    },
+    "Slack: ops summary": {
+      "main": [[{ "node": "Email 1099-NEC roster", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "1.0.0",
+  "triggerCount": 1,
+  "tags": [
+    { "name": "pacer" },
+    { "name": "partners" },
+    { "name": "monthly" },
+    { "name": "1099" }
+  ],
+  "meta": {
+    "description": "Monthly partner payout orchestration. Runs the pacer CLI, reads the generated ledger + 1099-NEC CSVs, posts a Slack summary to #pacer-ops, and emails the 1099 roster to finance. Gated on aftermarket_listings_enabled-independent path: the ledger/1099 pipeline runs regardless of listing toggles. Owner: 1COMMERCE LLC (Canby, OR). Compliance: 1099-NEC email is an internal trigger, not the IRS filing itself — actual FIRE/Track1099 submission remains manual."
+  }
+}

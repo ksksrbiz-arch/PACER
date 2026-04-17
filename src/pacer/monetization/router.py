@@ -271,3 +271,51 @@ class MonetizationRouter:
     ) -> list[DomainCandidate]:
         """Route a batch -- no concurrency needed, pure CPU."""
         return [self.route(c) for c in candidates]
+
+    async def route_and_list(
+        self, candidate: DomainCandidate
+    ) -> DomainCandidate:
+        """Route + actually POST aftermarket listings for auction/LTO tiers.
+
+        The sync :meth:`route` is CPU-only (strategy + URL computation); this
+        async variant is what the scheduler calls after route is chosen, so
+        BIN/LTO listings land on the real exchanges. Errors on one provider
+        don't revert the candidate's strategy — we record the failure and
+        keep moving so tomorrow's retry can recover.
+
+        Gated on ``Settings.aftermarket_listings_enabled`` — when False the
+        listing clients log "dry_run" and return a stub :class:`ListingResult`
+        without hitting the network.
+        """
+        # Defer import so unit tests that only exercise routing don't need
+        # the aftermarket module loaded.
+        from pacer.monetization.afternic import (
+            post_auction_listing,
+            post_lto_listing,
+        )
+
+        self.route(candidate)
+        if candidate.monetization_strategy == "auction_bin":
+            # Use candidate-level BIN estimate if we have one, else settings default
+            bin_price = (
+                candidate.lease_monthly_price_cents * 36
+                if candidate.lease_monthly_price_cents
+                else get_settings().default_bin_price_cents
+            )
+            results = await post_auction_listing(candidate.domain, bin_price)
+            logger.info(
+                "router.auction_listings domain={} results={}",
+                candidate.domain,
+                [(r.provider, r.status) for r in results],
+            )
+        elif candidate.monetization_strategy == "lease_to_own":
+            monthly = candidate.lease_monthly_price_cents or 999
+            bin_price = monthly * 36
+            result = await post_lto_listing(candidate.domain, bin_price, monthly)
+            logger.info(
+                "router.lto_listing domain={} provider={} status={}",
+                candidate.domain,
+                result.provider,
+                result.status,
+            )
+        return candidate

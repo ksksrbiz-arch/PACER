@@ -328,5 +328,13 @@ def cmd_dev_deploy() -> None:
     show_deploy_flow()
 
 
+# ─────────────────────────── business subgroups ─────────────────────
+# Imported at module bottom so the subgroups attach after the root `cli`
+# is fully defined. Keeps subgroup code out of main.py.
+from pacer.cli.partners import cmd_partners  # noqa: E402
+
+cli.add_command(cmd_partners)
+
+
 if __name__ == "__main__":  # pragma: no cover
     cli()
