@@ -1,32 +1,29 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_VERSION=1.8.3
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential libpq-dev curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install "poetry==${POETRY_VERSION}"
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gcc \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Copy lock files + README (pyproject.toml declares readme = "README.md")
+COPY pyproject.toml README.md ./
+COPY poetry.lock* ./
+RUN poetry install --only main --no-root --no-interaction
 
-# Install Poetry
-RUN pip install --no-cache-dir poetry==1.8.3
+COPY . .
+RUN poetry install --only main --no-interaction
 
-# Copy dependency files first (cache layer)
-COPY pyproject.toml poetry.lock* ./
-
-# Install dependencies (no dev deps in prod)
-RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
-
-# Copy source
-COPY src/ ./src/
-COPY alembic.ini ./
-COPY migrations/ ./migrations/
-
-# Non-root user for security
-RUN useradd -m pacer && chown -R pacer:pacer /app
+RUN useradd -m -u 10001 pacer
 USER pacer
 
-# Default command
-CMD ["python", "-m", "src.main"]
+ENTRYPOINT ["pacer"]
+CMD ["schedule"]
