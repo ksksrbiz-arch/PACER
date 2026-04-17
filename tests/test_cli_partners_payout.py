@@ -299,6 +299,27 @@ async def test_payout_run_second_time_zero_delta(
     assert summary["entry_count"] == 0
 
 
+@pytest.mark.asyncio
+async def test_payout_run_same_period_rerun_is_idempotent(
+    seeded, patched_session, tmp_path, engine, monkeypatch
+):
+    """Re-running the SAME period must not double-book.
+
+    Regression guard: pre-fix predicate was `period_end < period_start` which
+    excluded same-month entries from the prior-sum, so re-running April after
+    persisting April would create a second set of identical ledger rows.
+    """
+    monkeypatch.chdir(tmp_path)
+    from pacer.cli.partners import _run_payout
+
+    first = await _run_payout("2026-04", dry_run=False)
+    assert first["entry_count"] > 0
+
+    second = await _run_payout("2026-04", dry_run=False)
+    assert second["entry_count"] == 0
+    assert second["total_partner_cents"] == 0
+
+
 # ─────────────────────────── bad input ──────────────────────────────
 def test_payout_run_bad_period(runner, tmp_path, patched_session):
     result = _invoke(runner, ["partners", "payout", "run", "--period", "not-a-period"], tmp_path)
