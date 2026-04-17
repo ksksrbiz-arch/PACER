@@ -311,5 +311,22 @@ def cmd_dev_config() -> None:
 
     show_config_summary()
 
+
+@cmd_dev.command("vps")
+def cmd_dev_vps() -> None:
+    """Show the direct link to the Hostinger OpenClaw VPS subscription panel."""
+    from pacer.ui.dashboard import show_vps_link
+
+    show_vps_link()
+
+
+@cmd_dev.command("deploy")
+def cmd_dev_deploy() -> None:
+    """Print the full step-by-step deployment flow for the Hostinger OpenClaw VPS."""
+    from pacer.ui.dashboard import show_deploy_flow
+
+    show_deploy_flow()
+
+
 if __name__ == "__main__":  # pragma: no cover
     cli()
