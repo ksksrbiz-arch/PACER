@@ -97,7 +97,7 @@ async def test_setup_redirect_returns_target_url():
         result = await mgr.setup_301_redirect(candidate)
 
     assert result is not None
-    assert "1commercesolutions.com" in result
+    assert result.startswith("https://1commercesolutions.com")
     mock_cf.assert_called_once()
 
 
@@ -111,7 +111,7 @@ async def test_setup_redirect_survives_cloudflare_failure():
     with patch.object(
         mgr, "_apply_cloudflare_rule", new_callable=AsyncMock, side_effect=Exception("CF error")
     ):
-        result = await mgr.setup_redirect(candidate) if False else await mgr.setup_301_redirect(candidate)
+        result = await mgr.setup_301_redirect(candidate)
 
     assert result is not None
 
@@ -128,6 +128,7 @@ async def test_setup_batch_returns_mapping():
 
     assert "crmco.io" in results
     assert results["crmco.io"] is not None
+    assert results["crmco.io"].startswith("https://1commercesolutions.com")
     # candidate with no domain falls back to company_name as key
     assert results.get("No Domain") is None
 

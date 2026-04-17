@@ -168,5 +168,5 @@ def test_domain_portfolio_defaults():
 def test_domain_portfolio_repr():
     entry = DomainPortfolio(domain="repr.io", status="active", current_valuation_usd=5000.0)
     r = repr(entry)
-    assert "repr.io" in r
-    assert "active" in r
+    assert entry.domain in r
+    assert entry.status in r
