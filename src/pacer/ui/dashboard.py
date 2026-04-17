@@ -270,3 +270,170 @@ def show_config_summary() -> None:
     console.print(table)
     console.print("  LLM provider : ", llm_col)
     console.print()
+
+
+# ─────────────────────────── vps link ────────────────────────────────────────
+
+_HOSTINGER_VPS_URL = "https://hpanel.hostinger.com/vps"
+_HOSTINGER_BILLING_URL = "https://hpanel.hostinger.com/billing/subscriptions"
+
+
+def show_vps_link() -> None:
+    """Display a direct link to the Hostinger OpenClaw VPS subscription panel."""
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(style="dim", no_wrap=True)
+    grid.add_column()
+
+    grid.add_row(
+        "VPS Dashboard",
+        Text.from_markup(
+            f"[bold cyan][link={_HOSTINGER_VPS_URL}]{_HOSTINGER_VPS_URL}[/link][/bold cyan]"
+        ),
+    )
+    grid.add_row(
+        "Subscriptions",
+        Text.from_markup(
+            f"[cyan][link={_HOSTINGER_BILLING_URL}]{_HOSTINGER_BILLING_URL}[/link][/cyan]"
+        ),
+    )
+    grid.add_row("Plan", "[white]Hostinger OpenClaw VPS[/white]")
+    grid.add_row("Entity", "[white]1COMMERCE LLC[/white]")
+
+    console.print()
+    console.print(
+        Panel(
+            grid,
+            title="[bold bright_blue]☁  Hostinger OpenClaw VPS[/bold bright_blue]",
+            subtitle="[dim]Ctrl+click to open in browser (terminal must support hyperlinks)[/dim]",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+    )
+    console.print()
+
+
+# ─────────────────────────── deploy flow ─────────────────────────────────────
+
+_DEPLOY_STEPS: list[tuple[str, str, str]] = [
+    (
+        "1",
+        "Provision VPS",
+        (
+            "apt update && apt upgrade -y\n"
+            "apt install -y docker.io docker-compose-plugin git ufw fail2ban\n"
+            "systemctl enable --now docker\n"
+            "ufw allow OpenSSH && ufw --force enable\n"
+            "adduser --disabled-password --gecos '' pacer\n"
+            "usermod -aG docker pacer\n"
+            "# Copy your public SSH key for key-based login (password auth disabled):\n"
+            "mkdir -p /home/pacer/.ssh && chmod 700 /home/pacer/.ssh\n"
+            "echo '<YOUR_PUBLIC_KEY>' >> /home/pacer/.ssh/authorized_keys\n"
+            "chmod 600 /home/pacer/.ssh/authorized_keys\n"
+            "chown -R pacer:pacer /home/pacer/.ssh"
+        ),
+    ),
+    (
+        "2",
+        "Clone repository",
+        (
+            "su - pacer\n"
+            "git clone https://github.com/ksksrbiz-arch/PACER.git pacer\n"
+            "cd pacer"
+        ),
+    ),
+    (
+        "3",
+        "Configure secrets",
+        (
+            "cp .env.example .env\n"
+            "# Edit .env — fill every key.\n"
+            "# Generate secrets with:  openssl rand -hex 32"
+        ),
+    ),
+    (
+        "4",
+        "Build & migrate",
+        (
+            "make deploy-prep\n"
+            "# Builds Docker images and runs:  alembic upgrade head"
+        ),
+    ),
+    (
+        "5",
+        "Start services",
+        (
+            "make docker-up\n"
+            "# Starts: postgres  redis  pacer daemon"
+        ),
+    ),
+    (
+        "6",
+        "Verify",
+        (
+            "make docker-logs\n"
+            "# Scheduler fires at 03:00 UTC by default.\n"
+            "# Look for:  scheduler_started  and  discovery_start"
+        ),
+    ),
+    (
+        "7",
+        "Enable nightly backups",
+        (
+            "# Add to crontab on the VPS host:\n"
+            "0 4 * * * docker exec pacer_postgres_1 pg_dump -U pacer pacer "
+            "| gzip > /backups/pacer-$(date +\\%F).sql.gz"
+        ),
+    ),
+    (
+        "8",
+        "Future updates",
+        (
+            "git pull\n"
+            "make docker-down && make deploy-prep && make docker-up"
+        ),
+    ),
+]
+
+
+def show_deploy_flow() -> None:
+    """Render the full VPS deployment flow as a Rich checklist."""
+    console.rule("[bold cyan]PACER — Full Deployment Flow[/bold cyan]")
+    console.print(
+        f"  Target : [bold bright_blue][link={_HOSTINGER_VPS_URL}]"
+        f"Hostinger OpenClaw VPS[/link][/bold bright_blue]"
+        f"  │  Entity : [white]1COMMERCE LLC[/white]\n",
+        highlight=False,
+    )
+
+    for step_num, title, commands in _DEPLOY_STEPS:
+        header = Text()
+        header.append(f"  Step {step_num} — ", style="dim")
+        header.append(title, style="bold white")
+
+        code_block = Table.grid(padding=(0, 1))
+        code_block.add_column()
+        for line in commands.splitlines():
+            if line.startswith("#"):
+                code_block.add_row(Text(line, style="dim italic"))
+            else:
+                code_block.add_row(Text(line, style="bright_yellow"))
+
+        console.print(
+            Panel(
+                code_block,
+                title=header,
+                title_align="left",
+                border_style="cyan",
+                padding=(0, 1),
+            )
+        )
+
+    console.print()
+    console.print(
+        "  [bold green]✓[/bold green]  Follow [bold]SETUP.md[/bold] §6 (DFR exemption) before "
+        "enabling fractional RWA sales."
+    )
+    console.print(
+        "  [bold green]✓[/bold green]  For monitoring details see "
+        "[bold]SETUP.md[/bold] §5 (Prometheus / Slack).\n"
+    )
