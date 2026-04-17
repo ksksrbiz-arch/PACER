@@ -328,6 +328,46 @@ def cmd_dev_deploy() -> None:
     show_deploy_flow()
 
 
+@cmd_dev.command("health")
+def cmd_dev_health() -> None:
+    """Operator health check: DB probe + scheduler/LLM/key inventory."""
+    from pacer.ui.dashboard import show_health_check
+
+    asyncio.run(show_health_check())
+
+
+@cmd_dev.command("monetize")
+@click.argument("domain")
+@click.option(
+    "--tier",
+    required=True,
+    type=click.Choice(
+        ["auction_bin", "lease_to_own", "301_redirect", "parking", "aftermarket"],
+        case_sensitive=False,
+    ),
+    help="Pin the synthetic candidate's scoring profile to this tier.",
+)
+@click.option(
+    "--persist",
+    is_flag=True,
+    default=False,
+    help="Upsert the synthetic candidate into the DB (off by default = pure dry-run).",
+)
+def cmd_dev_monetize(domain: str, tier: str, persist: bool) -> None:
+    """Rich-panel dry-run of the monetization router for DOMAIN at TIER."""
+    from pacer.ui.dashboard import monetize_dry_run
+
+    asyncio.run(monetize_dry_run(domain, tier, persist=persist))
+
+
+@cmd_dev.command("partners")
+def cmd_dev_partners() -> None:
+    """Partner roster + YTD payout summary + 1099-NEC + CTA/BOI flags."""
+    from pacer.ui.dashboard import show_partners_summary
+
+    asyncio.run(show_partners_summary())
+
+
 # ─────────────────────────── business subgroups ─────────────────────
 # Imported at module bottom so the subgroups attach after the root `cli`
 # is fully defined. Keeps subgroup code out of main.py.
