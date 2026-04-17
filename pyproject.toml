@@ -30,10 +30,10 @@ python-dotenv = "^1.0.1"
 redis = "^5.0.7"
 prometheus-client = "^0.20.0"
 slack-sdk = "^3.31.0"
-cryptography = "^42.0.8"
+cryptography = "^46.0.7"
 web3 = "^7.0.0"
 eth-account = "^0.13.0"
-requests = "^2.32.3"
+requests = "^2.33.0"
 click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]
