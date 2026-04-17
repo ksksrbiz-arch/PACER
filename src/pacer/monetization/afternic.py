@@ -1,16 +1,22 @@
-"""Aftermarket listing clients — Afternic (GoDaddy) + Sedo MLS + DAN.com.
+"""Aftermarket listing clients -- Afternic (GoDaddy) + Sedo MLS + DAN.com.
 
 Posts BIN listings to the major aftermarket exchanges so a domain in the
 ``auction_bin`` tier is actually for sale, not just tagged in our DB.
 
 Three backends, one interface:
-    - :class:`AfternicClient`  — GoDaddy/Afternic Fast Transfer API
-    - :class:`SedoClient`      — Sedo MLS (JSON-RPC style via HTTP POST)
-    - :class:`DanClient`       — DAN.com REST, also used for LTO
+    - :class:`AfternicClient`  -- GoDaddy/Afternic Fast Transfer API
+    - :class:`SedoClient`      -- Sedo MLS (JSON-RPC style via HTTP POST)
+    - :class:`DanClient`       -- DAN.com REST, also used for LTO
 
 All three share :class:`ListingResult` so the router doesn't care which
 backend was used. Failures are logged + retried via the project's standard
 :mod:`pacer.utils.api_resilience` breaker.
+
+HTTP client lifecycle: each client method opens an ``httpx.AsyncClient``
+via ``async with`` and closes it before returning. An optional ``client``
+arg lets callers inject a long-lived client (tests, high-volume batches)
+and take over lifecycle. No client is created in ``__init__`` so nothing
+leaks sockets if the class is instantiated and never used.
 
 Compliance note: BIN listings + LTO are SALES of company assets (domain
 portfolio), governed by the standard 1COMMERCE LLC aftermarket terms. No
@@ -19,12 +25,16 @@ on gross proceeds, same as parking/affiliate revenue).
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import AsyncIterator
 
 import httpx
 from loguru import logger
 
 from pacer.config import get_settings
+
+_DEFAULT_TIMEOUT = 20.0
 
 
 @dataclass(frozen=True)
@@ -40,18 +50,35 @@ class ListingResult:
     error: str | None = None
 
 
+@asynccontextmanager
+async def _http_client(
+    injected: httpx.AsyncClient | None,
+    timeout: float = _DEFAULT_TIMEOUT,
+) -> AsyncIterator[httpx.AsyncClient]:
+    """Yield a client; close it only if we created it.
+
+    Caller-injected clients are returned unchanged (caller owns lifecycle).
+    Otherwise we create a short-lived AsyncClient and aclose it on exit.
+    """
+    if injected is not None:
+        yield injected
+        return
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        yield client
+
+
 # ─────────────────────────── Afternic ───────────────────────────────
 class AfternicClient:
     """GoDaddy/Afternic Fast Transfer + Premium Listings API.
 
     Endpoint pattern (v2):
-        POST /listings  — body: {"domain": "...", "price": <usd>, "currency": "USD"}
+        POST /listings  -- body: {"domain": "...", "price": <usd>, "currency": "USD"}
         Headers: Authorization: sso-key <key>:<secret>
                  X-Partner-Id: <partner_id>
 
     API quirks we normalize:
-        - Price is in USD *dollars* (float) — we convert from cents.
-        - Listing URL returned as ``marketplace_url`` — we reshape to
+        - Price is in USD *dollars* (float) -- we convert from cents.
+        - Listing URL returned as ``marketplace_url`` -- we reshape to
           ``https://www.afternic.com/domain/<domain>`` for consistency.
     """
 
@@ -63,7 +90,7 @@ class AfternicClient:
         self._key = settings.afternic_api_key.get_secret_value()
         self._partner_id = settings.afternic_partner_id
         self._enabled = settings.aftermarket_listings_enabled
-        self._http = client or httpx.AsyncClient(timeout=20.0)
+        self._injected_http = client  # None means "create per-call"
 
     async def list_for_sale(
         self, domain: str, bin_price_cents: int
@@ -101,9 +128,10 @@ class AfternicClient:
         bin_price_cents: int,
     ) -> ListingResult:
         try:
-            resp = await self._http.post(
-                f"{self._base}/listings", json=body, headers=headers
-            )
+            async with _http_client(self._injected_http) as http:
+                resp = await http.post(
+                    f"{self._base}/listings", json=body, headers=headers
+                )
             resp.raise_for_status()
             data = resp.json()
             return ListingResult(
@@ -150,7 +178,7 @@ class SedoClient:
         self._signkey = settings.sedo_signkey.get_secret_value()
         self._partner = settings.sedo_partnerid
         self._enabled = settings.aftermarket_listings_enabled
-        self._http = client or httpx.AsyncClient(timeout=20.0)
+        self._injected_http = client
 
     async def list_for_sale(
         self, domain: str, bin_price_cents: int
@@ -191,7 +219,8 @@ class SedoClient:
         bin_price_cents: int,
     ) -> ListingResult:
         try:
-            resp = await self._http.post(f"{self._base}/domainInsert", json=body)
+            async with _http_client(self._injected_http) as http:
+                resp = await http.post(f"{self._base}/domainInsert", json=body)
             resp.raise_for_status()
             data = resp.json()
             return ListingResult(
@@ -225,8 +254,8 @@ class DanClient:
     """DAN.com BIN + Lease-to-Own listing.
 
     Two modes:
-        - ``list_for_sale``   — BIN only (used by auction_bin tier on DAN)
-        - ``list_lease_to_own`` — enables monthly LTO w/ ``monthly_price_cents``
+        - ``list_for_sale``   -- BIN only (used by auction_bin tier on DAN)
+        - ``list_lease_to_own`` -- enables monthly LTO w/ ``monthly_price_cents``
     """
 
     PROVIDER = "dan"
@@ -236,7 +265,7 @@ class DanClient:
         self._base = settings.dan_api_url
         self._key = settings.dan_api_key.get_secret_value()
         self._enabled = settings.aftermarket_listings_enabled
-        self._http = client or httpx.AsyncClient(timeout=20.0)
+        self._injected_http = client
 
     async def list_for_sale(
         self, domain: str, bin_price_cents: int
@@ -290,11 +319,12 @@ class DanClient:
         bin_price_cents: int,
     ) -> ListingResult:
         try:
-            resp = await self._http.post(
-                f"{self._base}/domains",
-                json=body,
-                headers={"Authorization": f"Bearer {self._key}"},
-            )
+            async with _http_client(self._injected_http) as http:
+                resp = await http.post(
+                    f"{self._base}/domains",
+                    json=body,
+                    headers={"Authorization": f"Bearer {self._key}"},
+                )
             resp.raise_for_status()
             data = resp.json()
             return ListingResult(
@@ -334,7 +364,7 @@ async def post_auction_listing(
     """Fan out a BIN listing to Afternic + Sedo in parallel.
 
     Router's ``auction_bin`` tier calls this. Errors on one provider don't
-    block the other — we want listing coverage even if one API is flaky.
+    block the other -- we want listing coverage even if one API is flaky.
     """
     import asyncio
 
