@@ -5,12 +5,10 @@ from __future__ import annotations
 
 from loguru import logger
 
-from pacer.config import get_settings
 from pacer.models.domain_candidate import DomainCandidate
-from pacer.scoring.relevance import _get_client  # re-use OpenAI client
+from pacer.scoring.llm_client import llm_generate_text
 
-settings = get_settings()
-
+SYSTEM_PROMPT = "You are a concise sales writer."
 
 OUTREACH_PROMPT = """
 You are writing a short, respectful outbound email from 1COMMERCE LLC.
@@ -30,30 +28,19 @@ async def send_competitor_outreach(
     competitor_email: str,
     competitor_name: str,
 ) -> str:
-    client = _get_client()
-    if client is None:
-        return ""
-    prompt = OUTREACH_PROMPT.format(
+    user = OUTREACH_PROMPT.format(
         domain=candidate.domain,
         prior_company=candidate.company_name or "a recently defunct company",
         dr=candidate.domain_rating or 0,
         refdomains=candidate.referring_domains or 0,
     )
-    resp = await client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {"role": "system", "content": "You are a concise sales writer."},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=350,
-        temperature=0.4,
-    )
-    body = resp.choices[0].message.content or ""
-    # Hook: wire to MailerLite / SMTP / SendGrid here.
-    logger.info(
-        "outreach_drafted domain={} to={} chars={}",
-        candidate.domain,
-        competitor_email,
-        len(body),
-    )
+    body = await llm_generate_text(SYSTEM_PROMPT, user)
+    if body:
+        # Hook: wire to MailerLite / SMTP / SendGrid here.
+        logger.info(
+            "outreach_drafted domain={} to={} chars={}",
+            candidate.domain,
+            competitor_email,
+            len(body),
+        )
     return body
