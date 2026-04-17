@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     DROPCATCH_API_KEY: str = ""
     NAMEJET_API_KEY: str = ""
 
+    # Cloudflare (for automated 301 redirect rule creation)
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_ZONE_ID: str = ""  # default zone; per-domain lookup is also attempted
+
     # Slack
     SLACK_WEBHOOK_URL: str = ""
 
