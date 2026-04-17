@@ -4,7 +4,19 @@ from __future__ import annotations
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Date, DateTime, Enum, Float, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pacer.models.base import Base, TimestampMixin
@@ -81,6 +93,25 @@ class DomainCandidate(Base, TimestampMixin):
     monetization_strategy: Mapped[str | None] = mapped_column(String(64))
     redirect_target: Mapped[str | None] = mapped_column(String(512))
     revenue_to_date_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # EPMV inputs (commercial intent signals used by composite yield score)
+    cpc_usd: Mapped[float | None] = mapped_column(Float)
+    est_monthly_searches: Mapped[int | None] = mapped_column(Integer)
+
+    # Auction / lease-to-own
+    auction_listing_url: Mapped[str | None] = mapped_column(String(512))
+    lease_to_own_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    lease_monthly_price_cents: Mapped[int | None] = mapped_column(Integer)
+
+    # Trademark screen result (set by USPTOTrademarkScreener)
+    tm_conflict: Mapped[bool | None] = mapped_column(Boolean)
+    tm_reason: Mapped[str | None] = mapped_column(String(64))
+
+    # Partner attribution (1099 contractor / profit-share — see legal/)
+    partner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("partners.id", ondelete="SET NULL"), nullable=True
+    )
+    partner_rev_share_pct: Mapped[float | None] = mapped_column(Float)
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<DomainCandidate {self.domain} status={self.status} score={self.score}>"

@@ -104,6 +104,20 @@ class Settings(BaseSettings):
     schedule_cron_minute: int = 0
     score_threshold_dropcatch: int = Field(60, ge=0, le=100)
     score_threshold_parking: int = Field(40, ge=0, le=100)
+    score_threshold_auction: int = Field(85, ge=0, le=100)
+    lease_to_own_min_score: int = Field(70, ge=0, le=100)
+
+    # ─── Yield / EPMV weighting ──────────────────────────────────────
+    epmv_authority_weight: float = Field(0.40, ge=0.0, le=1.0)
+    epmv_commercial_weight: float = Field(0.60, ge=0.0, le=1.0)
+
+    # ─── Trademark screening ────────────────────────────────────────
+    uspto_tmscreen_enabled: bool = True
+
+    # ─── Partner / profit-share ─────────────────────────────────────
+    # Hard cap keeps partners under CTA/BOI beneficial-ownership threshold (25%).
+    partner_max_rev_share_pct: float = Field(24.9, ge=0.0, le=24.9)
+    partner_default_rev_share_pct: float = Field(20.0, ge=0.0, le=24.9)
 
     # ─── Env ─────────────────────────────────────────────────────────
     environment: Literal["development", "ci", "staging", "production"] = "production"
