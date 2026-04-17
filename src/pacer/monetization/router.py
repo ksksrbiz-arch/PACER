@@ -293,8 +293,26 @@ class MonetizationRouter:
             post_auction_listing,
             post_lto_listing,
         )
+        from pacer.monetization.cloudflare import configure_cloudflare_redirect
 
         self.route(candidate)
+
+        # 301/parking tiers: write Cloudflare redirect rule for redirect_target.
+        # auction_bin / lease_to_own skip this — they list instead of redirect.
+        if (
+            candidate.redirect_target
+            and candidate.monetization_strategy in {"301_redirect", "parking"}
+        ):
+            cf = await configure_cloudflare_redirect(
+                candidate.domain, candidate.redirect_target
+            )
+            logger.info(
+                "router.cloudflare_redirect domain={} status={} ruleset={}",
+                candidate.domain,
+                cf.status,
+                cf.ruleset_id,
+            )
+
         if candidate.monetization_strategy == "auction_bin":
             # Use candidate-level BIN estimate if we have one, else settings default
             bin_price = (
