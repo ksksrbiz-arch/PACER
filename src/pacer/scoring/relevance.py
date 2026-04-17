@@ -4,6 +4,7 @@ Thin shim that delegates to llm_client.llm_relevance_with_fallback.
 The ``llm_relevance`` name is kept for backward compatibility with
 existing engine.py call sites and test monkeypatches.
 """
+
 from __future__ import annotations
 
 from pacer.scoring.llm_client import llm_relevance_with_fallback

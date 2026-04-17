@@ -4,6 +4,7 @@ We patch ``pacer.cli.partners.session_scope`` to yield sessions from a shared
 aiosqlite engine so every call in the same test hits the same DB. The CLI is
 driven via Click's :class:`CliRunner` so we exercise the real argv wiring.
 """
+
 from __future__ import annotations
 
 import csv
@@ -13,9 +14,6 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from click.testing import CliRunner
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from pacer.models.base import Base
 from pacer.models.domain_candidate import (
     DomainCandidate,
@@ -24,6 +22,8 @@ from pacer.models.domain_candidate import (
 )
 from pacer.partners.ledger import PayoutEntry, PayoutStatus
 from pacer.partners.models.partner import Partner, PartnerStatus
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 def _enable_sqlite_fks(dbapi_conn, _):
@@ -115,12 +115,24 @@ def runner():
 
 
 # ─────────────────────────── helpers ────────────────────────────────
-def _invoke(runner: CliRunner, args: list[str], cwd: Path):
+def _invoke_sync(runner: CliRunner, args: list[str], cwd: Path):
     from pacer.main import cli
 
     with runner.isolated_filesystem(temp_dir=cwd):
-        result = runner.invoke(cli, args, catch_exceptions=False)
-        return result
+        return runner.invoke(cli, args, catch_exceptions=False)
+
+
+async def _invoke(runner: CliRunner, args: list[str], cwd: Path):
+    """Invoke a Click CLI inside a worker thread.
+
+    The CLI handlers call ``asyncio.run()``, which raises ``RuntimeError``
+    if called from within a running event loop. ``asyncio.to_thread``
+    runs the invocation on a fresh thread so the test's outer loop is
+    untouched.
+    """
+    import asyncio
+
+    return await asyncio.to_thread(_invoke_sync, runner, args, cwd)
 
 
 # ─────────────────────────── run (dry) ──────────────────────────────
@@ -128,7 +140,9 @@ def _invoke(runner: CliRunner, args: list[str], cwd: Path):
 async def test_payout_run_dry_run_does_not_persist(
     seeded, patched_session, runner, tmp_path, engine
 ):
-    result = _invoke(runner, ["partners", "payout", "run", "--period", "2026-04", "--dry-run"], tmp_path)
+    result = await _invoke(
+        runner, ["partners", "payout", "run", "--period", "2026-04", "--dry-run"], tmp_path
+    )
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
     assert "Entries:           2" in result.output
@@ -139,6 +153,7 @@ async def test_payout_run_dry_run_does_not_persist(
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as s:
         from sqlalchemy import select
+
         entries = list((await s.execute(select(PayoutEntry))).scalars().all())
     assert entries == []
 
@@ -148,7 +163,7 @@ async def test_payout_run_dry_run_does_not_persist(
 async def test_payout_run_persists_and_writes_csv(
     seeded, patched_session, runner, tmp_path, engine
 ):
-    result = _invoke(runner, ["partners", "payout", "run", "--period", "2026-04"], tmp_path)
+    result = await _invoke(runner, ["partners", "payout", "run", "--period", "2026-04"], tmp_path)
     assert result.exit_code == 0, result.output
     assert "PERSISTED" in result.output
 
@@ -156,6 +171,7 @@ async def test_payout_run_persists_and_writes_csv(
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as s:
         from sqlalchemy import select
+
         entries = list((await s.execute(select(PayoutEntry))).scalars().all())
     assert len(entries) == 2
     assert sum(e.partner_cents for e in entries) == 204_000  # $2,040
@@ -180,7 +196,7 @@ async def test_payout_run_ledger_csv_content(
     csv_path = Path(summary["ledger_csv"])
     assert csv_path.exists()
 
-    with csv_path.open() as f:
+    with csv_path.open() as f:  # noqa: ASYNC230 - test-only sync read
         rows = list(csv.DictReader(f))
     assert len(rows) == 2
     domains = {r["domain"] for r in rows}
@@ -198,11 +214,12 @@ async def test_1099nec_csv_includes_partner_above_600(
     from pacer.cli.partners import _mark_paid, _run_payout
 
     # Run + mark-paid so the entries count toward YTD 1099 totals.
-    summary = await _run_payout("2026-04", dry_run=False)
+    await _run_payout("2026-04", dry_run=False)
 
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as s:
         from sqlalchemy import select
+
         entries = list((await s.execute(select(PayoutEntry))).scalars().all())
 
     for e in entries:
@@ -212,7 +229,7 @@ async def test_1099nec_csv_includes_partner_above_600(
     summary2 = await _run_payout("2026-05", dry_run=False)
     nec_path = Path(summary2["nec_csv"])
     assert nec_path.exists()
-    with nec_path.open() as f:
+    with nec_path.open() as f:  # noqa: ASYNC230 - test-only sync read
         rows = list(csv.DictReader(f))
     # Jane got $2,040 YTD — above $600 threshold, so she's on the 1099 list.
     assert len(rows) == 1
@@ -251,23 +268,22 @@ async def test_1099nec_csv_excludes_partner_below_600(
 
     from pacer.cli.partners import _mark_paid, _run_payout
 
-    summary = await _run_payout("2026-04", dry_run=False)
+    await _run_payout("2026-04", dry_run=False)
     async with maker() as s:
         from sqlalchemy import select
+
         [entry] = list((await s.execute(select(PayoutEntry))).scalars().all())
     await _mark_paid(entry.id, ref="ACH-x", paid_on=date(2026, 5, 1))
 
     summary2 = await _run_payout("2026-05", dry_run=False)
-    with Path(summary2["nec_csv"]).open() as f:
+    with Path(summary2["nec_csv"]).open() as f:  # noqa: ASYNC230 - test-only sync read
         rows = list(csv.DictReader(f))
     assert rows == []  # below threshold, no 1099 needed
 
 
 # ─────────────────────────── list + mark-paid ───────────────────────
 @pytest.mark.asyncio
-async def test_payout_list_and_mark_paid(
-    seeded, patched_session, tmp_path, engine, monkeypatch
-):
+async def test_payout_list_and_mark_paid(seeded, patched_session, tmp_path, engine, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from pacer.cli.partners import _list_payouts, _mark_paid, _run_payout
 
@@ -301,6 +317,8 @@ async def test_payout_run_second_time_zero_delta(
 
 # ─────────────────────────── bad input ──────────────────────────────
 def test_payout_run_bad_period(runner, tmp_path, patched_session):
-    result = _invoke(runner, ["partners", "payout", "run", "--period", "not-a-period"], tmp_path)
+    result = _invoke_sync(
+        runner, ["partners", "payout", "run", "--period", "not-a-period"], tmp_path
+    )
     assert result.exit_code != 0
     assert "YYYY-MM" in result.output or "period" in result.output.lower()

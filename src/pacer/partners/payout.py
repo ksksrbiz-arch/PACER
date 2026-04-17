@@ -4,6 +4,7 @@ Pure functions — no DB. Given a DomainCandidate's revenue and a Partner's
 terms, compute the 1099-NEC payout amount in cents. Caller writes to the
 ledger.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

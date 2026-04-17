@@ -4,12 +4,12 @@ Respx-backed HTTP stubs; no real network calls. We also verify the
 ``aftermarket_listings_enabled=False`` + missing-key dry-run paths since
 that's how CI + staging run by default.
 """
+
 from __future__ import annotations
 
 import httpx
 import pytest
 import respx
-
 from pacer.monetization.afternic import (
     AfternicClient,
     DanClient,

@@ -4,6 +4,7 @@ CliRunner runs the click command synchronously (the command itself calls
 asyncio.run internally), so these tests are sync. DB setup/inspection
 is done by running async coroutines with asyncio.run in a helper.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,15 +13,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from click.testing import CliRunner
-from sqlalchemy import event, select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 from pacer.models.base import Base
 from pacer.models.domain_candidate import (
     DomainCandidate,
     PipelineSource,
     Status,
 )
+from sqlalchemy import event, select, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 def _enable_sqlite_fks(dbapi_conn, _):
@@ -141,9 +141,7 @@ def test_tier_profiles_cover_all_strategies():
 # ─── route-one ──────────────────────────────────────────────────────
 
 
-def test_route_one_auction_tier_persists_and_lists(
-    patched_session, stub_externals, runner, engine
-):
+def test_route_one_auction_tier_persists_and_lists(patched_session, stub_externals, runner, engine):
     result = _invoke(
         runner,
         ["monetization", "route-one", "--domain", "canary-auction.com", "--tier", "auction_bin"],
@@ -163,9 +161,7 @@ def test_route_one_auction_tier_persists_and_lists(
         async with maker() as s:
             return (
                 await s.execute(
-                    select(DomainCandidate).where(
-                        DomainCandidate.domain == "canary-auction.com"
-                    )
+                    select(DomainCandidate).where(DomainCandidate.domain == "canary-auction.com")
                 )
             ).scalar_one()
 
@@ -174,9 +170,7 @@ def test_route_one_auction_tier_persists_and_lists(
     assert row.status == Status.MONETIZED
 
 
-def test_route_one_301_tier_resolves_to_redirect(
-    patched_session, stub_externals, runner
-):
+def test_route_one_301_tier_resolves_to_redirect(patched_session, stub_externals, runner):
     result = _invoke(
         runner,
         ["monetization", "route-one", "--domain", "canary-301.com", "--tier", "301_redirect"],
@@ -194,9 +188,12 @@ def test_route_one_no_persist_flag(patched_session, stub_externals, runner, engi
     result = _invoke(
         runner,
         [
-            "monetization", "route-one",
-            "--domain", "canary-nopersist.com",
-            "--tier", "parking",
+            "monetization",
+            "route-one",
+            "--domain",
+            "canary-nopersist.com",
+            "--tier",
+            "parking",
             "--no-persist",
         ],
     )
@@ -273,9 +270,7 @@ def seeded_monetized(engine):
     _run(_seed())
 
 
-def test_list_recent_returns_monetized_only(
-    patched_session, seeded_monetized, runner
-):
+def test_list_recent_returns_monetized_only(patched_session, seeded_monetized, runner):
     result = _invoke(runner, ["monetization", "list-recent", "--since", "1 hour ago"])
     assert result.exit_code == 0, result.output
 
@@ -296,9 +291,7 @@ def test_list_recent_filters_by_tier(patched_session, seeded_monetized, runner):
     assert [r["domain"] for r in rows] == ["fresh-auction.com"]
 
 
-def test_list_recent_respects_since_window(
-    patched_session, seeded_monetized, runner, engine
-):
+def test_list_recent_respects_since_window(patched_session, seeded_monetized, runner, engine):
     maker = async_sessionmaker(engine, expire_on_commit=False)
 
     async def _age():

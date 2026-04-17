@@ -7,6 +7,7 @@ tracks renewal dates and valuations, and surfaces expiry/analytics summaries.
 Database persistence is available when an AsyncSession is injected;
 the in-memory helpers work independently for lightweight pipeline use.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -148,9 +149,7 @@ class PortfolioManager:
                 expiring.append(entry)
         return expiring
 
-    def update_valuation(
-        self, entry: DomainPortfolio, new_valuation_usd: float
-    ) -> DomainPortfolio:
+    def update_valuation(self, entry: DomainPortfolio, new_valuation_usd: float) -> DomainPortfolio:
         """Update the current valuation for a portfolio entry."""
         old = entry.current_valuation_usd
         entry.current_valuation_usd = new_valuation_usd

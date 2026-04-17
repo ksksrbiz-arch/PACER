@@ -4,10 +4,10 @@ These tests avoid hitting live APIs. Each pipeline is verified at the import
 level (callable, registered in ALL_PIPELINES); side-effectful paths are
 exercised with monkeypatched stubs.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from pacer.pipelines import (
     ALL_PIPELINES,
@@ -85,8 +85,7 @@ async def test_submit_backorders_sets_queued_when_any_registrar_accepts(monkeypa
 
 @pytest.mark.asyncio
 async def test_submit_backorders_marks_failed_when_all_registrars_error(monkeypatch):
-    from pacer.dropcatch import dropcatch_com, dynadot, godaddy, namejet
-    from pacer.dropcatch import orchestrator
+    from pacer.dropcatch import dropcatch_com, dynadot, godaddy, namejet, orchestrator
 
     async def fail(domain: str) -> dict:
         raise RuntimeError("all registrars down")

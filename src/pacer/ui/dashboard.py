@@ -8,6 +8,7 @@ Provides helpers consumed by the ``pacer dev`` Click command group:
 
 All output goes through Rich so it renders cleanly in any modern terminal.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -133,11 +134,7 @@ async def show_status_table(limit: int = 50) -> None:
     from pacer.models.domain_candidate import DomainCandidate
 
     async with session_scope() as sess:
-        stmt = (
-            select(DomainCandidate)
-            .order_by(DomainCandidate.discovered_at.desc())
-            .limit(limit)
-        )
+        stmt = select(DomainCandidate).order_by(DomainCandidate.discovered_at.desc()).limit(limit)
         rows = list((await sess.execute(stmt)).scalars().all())
 
     if not rows:
@@ -463,11 +460,7 @@ _DEPLOY_STEPS: list[tuple[str, str, str]] = [
     (
         "2",
         "Clone repository",
-        (
-            "su - pacer\n"
-            "git clone https://github.com/ksksrbiz-arch/PACER.git pacer\n"
-            "cd pacer"
-        ),
+        ("su - pacer\n" "git clone https://github.com/ksksrbiz-arch/PACER.git pacer\n" "cd pacer"),
     ),
     (
         "3",
@@ -481,18 +474,12 @@ _DEPLOY_STEPS: list[tuple[str, str, str]] = [
     (
         "4",
         "Build & migrate",
-        (
-            "make deploy-prep\n"
-            "# Builds Docker images and runs:  alembic upgrade head"
-        ),
+        ("make deploy-prep\n" "# Builds Docker images and runs:  alembic upgrade head"),
     ),
     (
         "5",
         "Start services",
-        (
-            "make docker-up\n"
-            "# Starts: postgres  redis  pacer daemon"
-        ),
+        ("make docker-up\n" "# Starts: postgres  redis  pacer daemon"),
     ),
     (
         "6",
@@ -515,10 +502,7 @@ _DEPLOY_STEPS: list[tuple[str, str, str]] = [
     (
         "8",
         "Future updates",
-        (
-            "git pull\n"
-            "make docker-down && make deploy-prep && make docker-up"
-        ),
+        ("git pull\n" "make docker-down && make deploy-prep && make docker-up"),
     ),
 ]
 

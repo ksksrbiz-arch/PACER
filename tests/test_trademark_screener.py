@@ -1,15 +1,15 @@
 """USPTOTrademarkScreener tests — fully mocked, no network."""
+
 from __future__ import annotations
 
 import httpx
 import pytest
 import respx
-from pydantic import SecretStr
-
 from pacer.scoring.trademark import (
     USPTOTrademarkScreener,
     _normalize_brand,
 )
+from pydantic import SecretStr
 
 _USPTO = "https://tsdrapi.uspto.gov/ts/cd/casestatus/search"
 
@@ -41,9 +41,7 @@ async def test_too_short_brand_skipped():
 async def test_clear_when_no_records():
     respx.get(_USPTO).mock(return_value=httpx.Response(200, json={"results": []}))
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("novelwidgetbrand.com", "tech")
     assert verdict.conflict is False
     assert verdict.reason == "clear"
@@ -67,9 +65,7 @@ async def test_exact_match_is_conflict():
         )
     )
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("widgetco.com", "tech")
     assert verdict.conflict is True
     assert verdict.reason == "exact_match"
@@ -94,9 +90,7 @@ async def test_fuzzy_class_overlap_is_conflict():
         )
     )
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("widgetx.com", "tech")
     assert verdict.conflict is True
     assert verdict.reason == "fuzzy_class_overlap"
@@ -121,9 +115,7 @@ async def test_fuzzy_no_class_overlap_is_clear():
         )
     )
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("widgetx.com", "tech")
     assert verdict.conflict is False
     assert verdict.reason == "clear"
@@ -147,9 +139,7 @@ async def test_dead_marks_ignored():
         )
     )
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("widgetco.com", "tech")
     assert verdict.conflict is False
     assert verdict.reason == "clear"
@@ -160,9 +150,7 @@ async def test_dead_marks_ignored():
 async def test_network_error_degrades_to_unknown():
     respx.get(_USPTO).mock(side_effect=httpx.ConnectError("boom"))
     async with httpx.AsyncClient() as client:
-        screener = USPTOTrademarkScreener(
-            api_key=SecretStr("k"), client=client, enabled=True
-        )
+        screener = USPTOTrademarkScreener(api_key=SecretStr("k"), client=client, enabled=True)
         verdict = await screener.check("widgetco.com", "tech")
     assert verdict.conflict is False
     assert verdict.reason == "unknown"

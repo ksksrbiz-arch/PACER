@@ -44,6 +44,7 @@ ruff = "^0.5.5"
 black = "^24.8.0"
 mypy = "^1.11.0"
 respx = "^0.21.1"
+aiosqlite = "^0.20.0"
 
 [tool.poetry.scripts]
 pacer = "pacer.main:cli"

@@ -1,4 +1,5 @@
 """Structured audit log tied to 1COMMERCE LLC."""
+
 from __future__ import annotations
 
 import enum

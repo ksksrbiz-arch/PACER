@@ -1,4 +1,5 @@
 """Pytest fixtures — env isolation, no real DB or network."""
+
 from __future__ import annotations
 
 import os

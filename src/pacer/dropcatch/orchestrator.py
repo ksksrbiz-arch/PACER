@@ -4,6 +4,7 @@ Strategy: place backorders at ALL configured registrars simultaneously. Each
 registrar has a different catch algorithm — the more parallel bids, the higher
 the effective catch rate. Whichever one wins, we track via WHOIS polling.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,8 +31,9 @@ async def submit_backorders(candidate: DomainCandidate) -> DomainCandidate:
     successes: list[str] = []
     for (name, _), result in zip(tasks.items(), results, strict=True):
         if isinstance(result, Exception):
-            logger.warning("backorder_failed registrar={} domain={} err={}",
-                           name, candidate.domain, result)
+            logger.warning(
+                "backorder_failed registrar={} domain={} err={}", name, candidate.domain, result
+            )
             continue
         if isinstance(result, dict) and result.get("ok"):
             successes.append(name)

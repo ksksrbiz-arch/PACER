@@ -16,6 +16,7 @@ Design notes
   stop (conflict=True) — caller decides whether to override.
 - Everything else is conflict=False.
 """
+
 from __future__ import annotations
 
 import re
@@ -120,7 +121,9 @@ class USPTOTrademarkScreener:
         for r in live:
             mark = re.sub(r"[^a-z0-9]", "", (r.get("markIdentification") or "").lower())
             if brand in mark or mark in brand:
-                classes = {int(c) for c in (r.get("internationalClassNumbers") or []) if str(c).isdigit()}
+                classes = {
+                    int(c) for c in (r.get("internationalClassNumbers") or []) if str(c).isdigit()
+                }
                 if classes & our_classes:
                     return TrademarkVerdict(True, "fuzzy_class_overlap", [r])
 

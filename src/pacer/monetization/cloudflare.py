@@ -28,6 +28,7 @@ Cloudflare, dashboard or registrar creates the zone, we write the redirect
 rule). Zone creation / DNS automation is a v2 concern — we don't want to
 accidentally spin up unpaid zones during a dry-run.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -126,17 +127,12 @@ class CloudflareRedirectClient:
                 error="no zone_id provided and no default_zone_id configured",
             )
 
-        url = (
-            f"{self._base_url}/zones/{zid}/rulesets/phases/"
-            f"{REDIRECT_PHASE}/entrypoint"
-        )
+        url = f"{self._base_url}/zones/{zid}/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
         payload = _build_redirect_payload(domain, target_url)
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             try:
-                resp = await client.put(
-                    url, headers=_auth_headers(self._token), json=payload
-                )
+                resp = await client.put(url, headers=_auth_headers(self._token), json=payload)
             except httpx.HTTPError as exc:
                 logger.warning(
                     "cloudflare.redirect.http_error domain={} zone={} err={}",
@@ -219,7 +215,5 @@ async def configure_cloudflare_redirect(
             status="dry_run",
         )
 
-    client = CloudflareRedirectClient(
-        api_token=token, default_zone_id=settings.cloudflare_zone_id
-    )
+    client = CloudflareRedirectClient(api_token=token, default_zone_id=settings.cloudflare_zone_id)
     return await client.set_single_redirect(domain, target_url, zone_id=zid)
