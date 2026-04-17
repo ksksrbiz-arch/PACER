@@ -100,3 +100,51 @@ async def test_monetization_appends_to_existing_notes():
     assert result.notes is not None
     assert "case_id=24-999" in result.notes
     assert "parking" in result.notes
+
+
+@pytest.mark.asyncio
+async def test_monetization_categorizes_saas_to_alternatives():
+    """SaaS keywords should route to /alternatives."""
+    router = MonetizationRouter()
+    candidate = DomainCandidate(
+        company_name="CloudCRM Platform", domain="cloudcrm.io", seo_score=85.0
+    )
+    result = await router.route(candidate)
+    assert (
+        "target=https://1commercesolutions.com/alternatives/cloudcrm-platform"
+        in result.notes
+    )
+
+
+@pytest.mark.asyncio
+async def test_monetization_ecommerce_routes_to_marketplace():
+    """E-commerce keywords should route to /marketplace."""
+    router = MonetizationRouter()
+    candidate = DomainCandidate(
+        company_name="ShopWidget Store", domain="shopwidget.com", seo_score=82.0
+    )
+    result = await router.route(candidate)
+    assert "/marketplace/" in result.notes
+
+
+@pytest.mark.asyncio
+async def test_monetization_parking_uses_hub_with_ref():
+    """Mid-score domains park on hub with ?ref= tracking."""
+    router = MonetizationRouter()
+    candidate = DomainCandidate(
+        company_name="Generic Biz", domain="generic.io", seo_score=65.0
+    )
+    result = await router.route(candidate)
+    assert "?ref=generic.io" in result.notes
+
+
+@pytest.mark.asyncio
+async def test_monetization_aftermarket_no_target():
+    """Low-score domains get no hub target (listed on aftermarket)."""
+    router = MonetizationRouter()
+    candidate = DomainCandidate(
+        company_name="Junk Domain Co", domain="junk.xyz", seo_score=35.0
+    )
+    result = await router.route(candidate)
+    assert "aftermarket" in result.notes
+    assert "target=" not in result.notes
