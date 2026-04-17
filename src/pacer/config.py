@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     parking_api_key: SecretStr = SecretStr("")
     affiliate_default_tag: str = "1commerce-20"
 
+    # ─── Cloudflare (automated 301 redirect rules) ────────────────────
+    cloudflare_api_token: SecretStr = SecretStr("")
+    cloudflare_zone_id: str = ""  # default zone; per-domain lookup is also attempted
+
     # ─── Alerts ──────────────────────────────────────────────────────
     slack_webhook_url: SecretStr = SecretStr("")
     alert_channel: str = "#pacer-ops"
