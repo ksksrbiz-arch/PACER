@@ -1,61 +1,22 @@
-# Generic / OS
-.DS_Store
-Thumbs.db
-*.pyc
 __pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-
-# Virtual environments
+*.py[cod]
+*.egg-info/
 .venv/
 venv/
-env/
-ENV/
-
-# Poetry
-poetry.lock
-
-# Environment files
 .env
-.env.local
-.env.*.local
-
-# Logs
-logs/*.log
-logs/*.jsonl
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
-.eggs/
-
-# Test / coverage
-.pytest_cache/
+.env.*
+!.env.example
 .coverage
 coverage.xml
 htmlcov/
-
-# MyPy
+.pytest_cache/
 .mypy_cache/
-*.pyi
-
-# Ruff / black
 .ruff_cache/
-
-# Docker
-.dockerignore
-
-# IDE
+dist/
+build/
+*.log
+.DS_Store
 .idea/
 .vscode/
-*.swp
-*.swo
-
-# Alembic (keep migrations but ignore compiled)
-migrations/__pycache__/
-
-# Temporary files
-/tmp/
+poetry.lock
+node_modules/

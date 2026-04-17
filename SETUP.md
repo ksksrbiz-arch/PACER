@@ -1,93 +1,71 @@
-# PACER Setup Guide
+# PACER Setup — Hostinger / OpenClaw VPS
 
-## Requirements
-
-- Python 3.11+
-- Poetry 1.8+
-- PostgreSQL 16+
-- Docker & Docker Compose (recommended for VPS)
-
-## For 1COMMERCE LLC (Canby, Oregon)
-
-- All compliance logs are automatically tagged `entity="1COMMERCE LLC"`
-- Pipeline runs daily at **3 AM UTC**
-- DFR exemption path uses Securitize hybrid settlement
-- Hostinger OpenClaw VPS (2 vCPU / 8 GB RAM) ready
-
-## Local Development Setup
+## 1. Provision
 
 ```bash
-# 1. Copy and fill environment variables
-cp .env.example .env
+# As root on fresh Ubuntu 22.04 VPS
+apt update && apt upgrade -y
+apt install -y docker.io docker-compose-plugin git ufw fail2ban
+systemctl enable --now docker
+ufw allow OpenSSH && ufw --force enable
 
-# 2. Install Python dependencies
-poetry install
-
-# 3. Start Postgres (Docker)
-docker-compose up -d db
-
-# 4. Apply migrations
-poetry run alembic upgrade head
-
-# 5. Run once manually to test
-poetry run python -c "
-import asyncio
-from src.pacer.pacer_client import PACERClient
-asyncio.run(PACERClient().fetch_yesterday_bankruptcies())
-"
+adduser --disabled-password --gecos "" pacer
+usermod -aG docker pacer
 ```
 
-## Hostinger VPS Deployment
+## 2. Clone + configure
 
 ```bash
-# SSH into VPS
-ssh user@your-vps-ip
-
-# Clone repo
-git clone https://github.com/ksksrbiz-arch/PACER.git
-cd PACER
-
-# Configure environment
+su - pacer
+git clone https://github.com/ksksrbiz-arch/PACER.git pacer
+cd pacer
 cp .env.example .env
-nano .env   # fill in all API keys and credentials
-
-# Start with Docker Compose (production)
-docker-compose -f docker-compose.prod.yml up -d
-
-# Run migrations
-docker-compose -f docker-compose.prod.yml exec app poetry run alembic upgrade head
-
-# Check logs
-docker-compose -f docker-compose.prod.yml logs -f app
+# Fill in every key. Use `openssl rand -hex 32` for anything that needs a secret.
 ```
 
-## Key Environment Variables
+## 3. Database migrations
 
-| Variable | Required | Description |
-|---|---|---|
-| `PACER_USERNAME` | ✅ | PACER NextGenCSO username |
-| `PACER_PASSWORD` | ✅ | PACER NextGenCSO password |
-| `OPENAI_API_KEY` | ✅ | GPT-4o topical relevance scoring |
-| `DATABASE_URL` | ✅ | PostgreSQL asyncpg connection string |
-| `AHREFS_API_KEY` | ⚠️ | Ahrefs DR scoring (optional but recommended) |
-| `DOMA_API_KEY` | ⚠️ | Doma RWA tokenization |
-| `SECURITIZE_API_KEY` | ⚠️ | Securitize DFR settlement |
-| `SLACK_WEBHOOK_URL` | ⚠️ | Pipeline alerts |
+```bash
+make deploy-prep    # builds containers, runs alembic upgrade head
+```
 
-## PACER API Notes
+## 4. First launch
 
-- **Free tier**: Filtered daily queries stay well under the quarterly $30 waiver
-- **Scheduled outage**: April 26, 2026 (7 AM – 9 PM ET) — pipeline falls back to RECAP automatically
-- **Authentication**: PACER NextGenCSO username/password (same login as PACER website)
+```bash
+make docker-up
+make docker-logs    # verify scheduler picks up at configured cron (default 03:00 UTC)
+```
 
-## Compliance
+## 5. Monitoring
 
-All pipeline runs are logged to `compliance_logs` with:
-- `llc_entity = "1COMMERCE LLC"`
-- `source = "PACER"`
-- Full timestamp and candidate count
+- `docker compose logs -f pacer` — live tail
+- Loguru writes to `./logs/pacer.log` (rotated daily, 30-day retention)
+- Slack webhook (`SLACK_WEBHOOK_URL`) receives critical alerts + daily summary
+- Optional: add Prometheus scrape target to port 9090 (metrics exposed by `prometheus_client`)
 
-These logs support:
-- Oregon DFR exemption opinion letter
-- Koinly / Form 8949 tax export
-- Canby business license annual renewal
+## 6. DFR exemption (Oregon Money Transmitter)
+
+Before executing the first fractional RWA sale under 1COMMERCE LLC:
+
+1. Engage an Oregon-admitted fintech attorney (Portland recommended).
+2. Commission an opinion letter confirming the Securitize hybrid settlement flow keeps PACER inside the DFR exemption.
+3. File the letter with DFR and retain a signed PDF in `compliance/dfr-opinion-letter.pdf` (gitignored).
+4. Flip `RWA_FRACTIONAL_SALES_ENABLED=true` in `.env` and restart.
+
+Template outreach and opinion-letter skeleton are in `docs/dfr-exemption-opinion.md`.
+
+## 7. Backups
+
+```bash
+# Nightly pg_dump via cron on VPS host
+0 4 * * * docker exec pacer_postgres_1 pg_dump -U pacer pacer | gzip > /backups/pacer-$(date +\%F).sql.gz
+```
+
+Retain 30 days rolling, encrypt with `age` before offsite rsync.
+
+## 8. Updates
+
+```bash
+git pull
+make docker-down && make deploy-prep && make docker-up
+```
