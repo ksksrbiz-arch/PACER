@@ -86,8 +86,8 @@ async def test_afternic_posts_listing_with_proper_auth(monkeypatch):
     assert sent.headers["Authorization"] == "sso-key key-123"
     assert sent.headers["X-Partner-Id"] == "partner-42"
     body = call.request.content.decode()
-    assert '"domain": "widget.com"' in body
-    assert '"price": 2990.0' in body  # cents → USD conversion
+    assert '"domain":"widget.com"' in body
+    assert '"price":2990.0' in body  # cents → USD conversion
     assert res.status == "listed"
     assert res.listing_id == "af-7777"
 
@@ -148,8 +148,8 @@ async def test_dan_lto_body_has_monthly(monkeypatch):
     c = DanClient()
     res = await c.list_lease_to_own("midtier.io", 299_000, 8_300)
     body = route.calls[0].request.content.decode()
-    assert '"lease_to_own_enabled": true' in body
-    assert '"lease_monthly_price": 83.0' in body
+    assert '"lease_to_own_enabled":true' in body
+    assert '"lease_monthly_price":83.0' in body
     assert res.status == "listed"
     assert res.listing_id == "dan-9001"
 
