@@ -47,6 +47,16 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = "gpt-4o"
 
+    # ─── LLM provider (claude | groq | openai) ────────────────────
+    # "claude" is the primary; "groq" is the free-tier fallback.
+    # The engine tries the configured provider first, then auto-falls
+    # back through the chain: claude → groq → openai → {} (empty).
+    llm_provider: Literal["claude", "groq", "openai"] = "claude"
+    anthropic_api_key: SecretStr = SecretStr("")
+    anthropic_model: str = "claude-opus-4-5"
+    groq_api_key: SecretStr = SecretStr("")
+    groq_model: str = "llama-3.3-70b-versatile"
+
     # ─── WHOIS ───────────────────────────────────────────────────────
     whoisxml_api_key: SecretStr = SecretStr("")
 

@@ -270,5 +270,46 @@ def cmd_version() -> None:
         click.echo("pacer (dev)")
 
 
+
+# ─────────────────────────── developer UI ────────────────────────────────
+@cli.group("dev")
+def cmd_dev() -> None:
+    """Developer tools: rich terminal UI, single-domain scoring, config check."""
+
+
+@cmd_dev.command("run")
+def cmd_dev_run() -> None:
+    """Run the full pipeline with a Rich live dashboard."""
+    from pacer.ui.dashboard import run_pipeline_live
+
+    asyncio.run(run_pipeline_live())
+
+
+@cmd_dev.command("status")
+@click.option("--limit", default=50, show_default=True, help="Max rows to display.")
+def cmd_dev_status(limit: int) -> None:
+    """Show domain candidates in a Rich table (latest N rows)."""
+    from pacer.ui.dashboard import show_status_table
+
+    asyncio.run(show_status_table(limit=limit))
+
+
+@cmd_dev.command("score")
+@click.argument("domain")
+@click.option("--company", default=None, help="Company name hint for the LLM.")
+def cmd_dev_score(domain: str, company: str | None) -> None:
+    """Score a single DOMAIN and display a detailed breakdown panel."""
+    from pacer.ui.dashboard import score_domain_live
+
+    asyncio.run(score_domain_live(domain, company))
+
+
+@cmd_dev.command("config")
+def cmd_dev_config() -> None:
+    """Print active settings (secrets redacted)."""
+    from pacer.ui.dashboard import show_config_summary
+
+    show_config_summary()
+
 if __name__ == "__main__":  # pragma: no cover
     cli()
