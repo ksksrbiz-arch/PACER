@@ -1,4 +1,5 @@
 """Audit logger — every event tagged with 1COMMERCE LLC."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,7 +24,11 @@ async def record_event(
     payload: dict[str, Any] | None = None,
 ) -> None:
     """Persist a compliance event. Always tagged with LLC entity."""
-    sev = EventSeverity(severity) if severity in EventSeverity._value2member_map_ else EventSeverity.INFO
+    sev = (
+        EventSeverity(severity)
+        if severity in EventSeverity._value2member_map_
+        else EventSeverity.INFO
+    )
     merged_payload = {**(payload or {}), **settings.compliance_tags}
 
     logger.bind(**merged_payload).log(
@@ -50,5 +55,8 @@ async def record_event(
                     payload=merged_payload,
                 )
             )
-    except Exception:  # pragma: no cover
+            # Flush inside the scope so DB errors surface here (and get
+            # rolled back) instead of leaking to the caller on commit.
+            await sess.flush()
+    except Exception:  # pragma: no cover — audit must never break the hot path
         logger.exception("compliance_persist_failed event={}", event_type)

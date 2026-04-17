@@ -15,6 +15,7 @@ Usage
     poetry run pacer schedule           # start APScheduler and block
     poetry run pacer status             # print pipeline/state counts
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -77,6 +78,34 @@ async def _run_discovery() -> dict[str, int | str]:
 
 
 # ─────────────────────────── routing ────────────────────────────
+async def _persist_candidates(candidates: list[DomainCandidate]) -> int:
+    """Merge in-memory status + monetization mutations back to the DB.
+
+    Routing stages (`submit_backorders`, `activate_parking`) mutate the
+    candidate in memory. Without this write-back, mid-run crashes lose
+    the pipeline's work. Matches the pattern used in scoring.engine.
+    """
+    if not candidates:
+        return 0
+    persisted = 0
+    async with session_scope() as sess:
+        for c in candidates:
+            existing = (
+                await sess.execute(
+                    select(DomainCandidate).where(DomainCandidate.domain == c.domain)
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                continue
+            existing.status = c.status
+            if c.monetization_strategy is not None:
+                existing.monetization_strategy = c.monetization_strategy
+            if c.caught_by_registrar is not None:
+                existing.caught_by_registrar = c.caught_by_registrar
+            persisted += 1
+    return persisted
+
+
 async def _route_by_score() -> dict[str, int]:
     """Pull newly-scored candidates and dispatch them by score band."""
     dropcatch_thr = settings.score_threshold_dropcatch
@@ -94,23 +123,18 @@ async def _route_by_score() -> dict[str, int]:
     dc_tasks = [submit_backorders(c) for c in high]
     dc_results = await asyncio.gather(*dc_tasks, return_exceptions=True)
     dc_ok = sum(1 for r in dc_results if not isinstance(r, Exception))
+    await _persist_candidates([c for c in high if c.status != Status.SCORED])
 
     # Parking / affiliate
     park_tasks = [activate_parking(c) for c in mid]
     park_results = await asyncio.gather(*park_tasks, return_exceptions=True)
     park_ok = sum(1 for r in park_results if not isinstance(r, Exception))
+    await _persist_candidates([c for c in mid if c.status != Status.SCORED])
 
     # Discard low-score candidates
-    if low:
-        async with session_scope() as sess:
-            for c in low:
-                existing = (
-                    await sess.execute(
-                        select(DomainCandidate).where(DomainCandidate.domain == c.domain)
-                    )
-                ).scalar_one_or_none()
-                if existing is not None:
-                    existing.status = Status.DISCARDED
+    for c in low:
+        c.status = Status.DISCARDED
+    await _persist_candidates(low)
 
     return {
         "dropcatch_queued": dc_ok,
@@ -226,11 +250,15 @@ async def _run_scheduler() -> None:
         settings.schedule_cron_hour,
         settings.schedule_cron_minute,
     )
+    stop_event = asyncio.Event()
     try:
-        # Block forever
-        while True:
-            await asyncio.sleep(3600)
+        # Block until cancelled (SIGINT/SIGTERM) — Event.wait() is the
+        # modern equivalent of loop.run_forever() and cooperates with
+        # asyncio.run()'s cancellation handling.
+        await stop_event.wait()
     except (KeyboardInterrupt, asyncio.CancelledError):  # pragma: no cover
+        pass
+    finally:  # pragma: no cover
         scheduler.shutdown(wait=False)
         logger.info("scheduler_stopped")
 
@@ -268,7 +296,6 @@ def cmd_version() -> None:
         click.echo(version("pacer"))
     except PackageNotFoundError:
         click.echo("pacer (dev)")
-
 
 
 # ─────────────────────────── developer UI ────────────────────────────────
