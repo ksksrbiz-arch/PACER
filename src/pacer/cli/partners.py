@@ -26,6 +26,7 @@ Usage
     pacer partners payout list --period 2026-04 --status pending
     pacer partners payout mark-paid --id 42 --ref ACH-93821 --paid-on 2026-05-05
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -60,9 +61,7 @@ def _parse_period(period: str) -> tuple[date, date]:
         year_str, month_str = period.split("-")
         year, month = int(year_str), int(month_str)
     except (ValueError, AttributeError) as e:
-        raise click.BadParameter(
-            f"period must be YYYY-MM (got {period!r})"
-        ) from e
+        raise click.BadParameter(f"period must be YYYY-MM (got {period!r})") from e
     if not 1 <= month <= 12:
         raise click.BadParameter(f"month out of range: {month}")
     last_day = calendar.monthrange(year, month)[1]
@@ -79,9 +78,7 @@ class RevenueDelta:
     rev_share_pct: float
 
 
-async def _compute_period_deltas(
-    period_start: date, period_end: date
-) -> list[RevenueDelta]:
+async def _compute_period_deltas(period_start: date, period_end: date) -> list[RevenueDelta]:
     """Compute (partner, domain) revenue for the period.
 
     For each candidate with a non-null ``partner_id`` and positive
@@ -98,9 +95,7 @@ async def _compute_period_deltas(
                 DomainCandidate.revenue_to_date_cents > 0,
             )
         )
-        candidates: list[DomainCandidate] = list(
-            (await sess.execute(cand_stmt)).scalars().all()
-        )
+        candidates: list[DomainCandidate] = list((await sess.execute(cand_stmt)).scalars().all())
 
         # Sum of already-ledgered revenue per (partner_id, domain) across all
         # prior periods ending before this period_start. "Prior" means the
@@ -111,9 +106,7 @@ async def _compute_period_deltas(
             select(
                 PayoutEntry.partner_id,
                 PayoutEntry.domain,
-                func.coalesce(func.sum(PayoutEntry.gross_revenue_cents), 0).label(
-                    "prior_gross"
-                ),
+                func.coalesce(func.sum(PayoutEntry.gross_revenue_cents), 0).label("prior_gross"),
             )
             .where(
                 and_(
@@ -147,9 +140,7 @@ async def _compute_period_deltas(
 
 
 # ─────────────────────────── CSV writers ────────────────────────────
-def _write_ledger_csv(
-    entries: list[PayoutEntry], period_start: date, report_dir: Path
-) -> Path:
+def _write_ledger_csv(entries: list[PayoutEntry], period_start: date, report_dir: Path) -> Path:
     report_dir.mkdir(parents=True, exist_ok=True)
     path = report_dir / f"ledger_{period_start:%Y-%m}.csv"
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -186,9 +177,7 @@ def _write_ledger_csv(
     return path
 
 
-async def _write_1099nec_csv(
-    period_start: date, report_dir: Path
-) -> tuple[Path, int]:
+async def _write_1099nec_csv(period_start: date, report_dir: Path) -> tuple[Path, int]:
     """Year-to-date 1099-NEC roster for partners ≥ $600.
 
     We aggregate all PAID entries for the calendar year of ``period_start``
@@ -292,9 +281,7 @@ async def _run_payout(period: str, dry_run: bool) -> dict:
         async with session_scope() as sess:
             ledger = PayoutLedger(sess)
             entries = [
-                ledger.build_entry(
-                    line, period_start=period_start, period_end=period_end
-                )
+                ledger.build_entry(line, period_start=period_start, period_end=period_end)
                 for line in lines
             ]
             # Explicitly do NOT add to session / commit.
@@ -367,9 +354,7 @@ async def _list_payouts(period: str, status: str | None) -> list[dict]:
 async def _mark_paid(entry_id: int, ref: str, paid_on: date) -> dict:
     async with session_scope() as sess:
         entry = (
-            await sess.execute(
-                select(PayoutEntry).where(PayoutEntry.id == entry_id)
-            )
+            await sess.execute(select(PayoutEntry).where(PayoutEntry.id == entry_id))
         ).scalar_one_or_none()
         if entry is None:
             raise click.ClickException(f"no payout entry id={entry_id}")

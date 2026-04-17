@@ -1,6 +1,7 @@
 """AI-generated competitor outreach — offer the caught domain to the top
 organic competitor of the defunct company.
 """
+
 from __future__ import annotations
 
 from loguru import logger

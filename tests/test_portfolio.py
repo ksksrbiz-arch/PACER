@@ -1,13 +1,13 @@
 """
 Tests for pacer/portfolio/portfolio_manager.py and pacer/models/domain_portfolio.py
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from pacer.models.domain_portfolio import DomainPortfolio
 from pacer.portfolio.portfolio_manager import PortfolioManager

@@ -3,10 +3,10 @@
 Cascade: Clearbit Autocomplete → Hunter domain-search → Apollo → Crunchbase.
 Returns None if none of the providers yield a confident match.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any
 
 import tldextract
 from loguru import logger
@@ -115,7 +115,9 @@ async def resolve_domain(company_name: str) -> str | None:
             logger.debug("resolver_failed provider={} name={} err={}", provider.__name__, name, exc)
             continue
         if domain:
-            logger.debug("resolver_hit provider={} name={} domain={}", provider.__name__, name, domain)
+            logger.debug(
+                "resolver_hit provider={} name={} domain={}", provider.__name__, name, domain
+            )
             return domain
 
     return None

@@ -1,4 +1,5 @@
 """Pipeline 6 — probate/estate asset sales where a domain appears in the inventory."""
+
 from __future__ import annotations
 
 from loguru import logger

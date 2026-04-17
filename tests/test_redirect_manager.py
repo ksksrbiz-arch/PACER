@@ -1,12 +1,12 @@
 """
 Tests for pacer/monetization/redirect_engine.py — topic routing + 301 redirect configuration.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from pacer.monetization.redirect_engine import (
     PRIMARY_HUB,
@@ -34,7 +34,9 @@ def test_redirect_crm_keyword():
 
 
 def test_redirect_sales_keyword():
-    assert build_redirect_target("salesboost.com") == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
+    assert (
+        build_redirect_target("salesboost.com") == f"{PRIMARY_HUB}/resources/saas-alternatives/crm"
+    )
 
 
 def test_redirect_project_keyword():

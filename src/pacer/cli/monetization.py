@@ -24,13 +24,14 @@ Usage
     pacer monetization list-recent --since '1 hour ago' > /tmp/listings.json
     pacer monetization list-recent --since '1d' --tier 301_redirect
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import re
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import click
@@ -155,9 +156,7 @@ async def _route_one(domain: str, tier: str, persist: bool) -> dict:
         async with session_scope() as sess:
             # Upsert by domain — if canary exists from a prior run, update.
             existing = (
-                await sess.execute(
-                    select(DomainCandidate).where(DomainCandidate.domain == domain)
-                )
+                await sess.execute(select(DomainCandidate).where(DomainCandidate.domain == domain))
             ).scalar_one_or_none()
             if existing is None:
                 sess.add(candidate)
@@ -195,9 +194,7 @@ def _parse_since(since: str) -> datetime:
     """Parse '1 hour ago', '30 min', '1d', '2 hours ago' → absolute UTC dt."""
     m = _SINCE_RE.match(since)
     if not m:
-        raise click.BadParameter(
-            f"--since must look like '1 hour ago', '30m', '2d', got {since!r}"
-        )
+        raise click.BadParameter(f"--since must look like '1 hour ago', '30m', '2d', got {since!r}")
     amount = int(m.group("amount"))
     unit = m.group("unit").lower()
     if unit.startswith(("minute", "min", "m")) and not unit.startswith("month"):

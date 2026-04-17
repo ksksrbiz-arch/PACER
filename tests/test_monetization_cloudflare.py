@@ -1,4 +1,5 @@
 """Tests for Cloudflare auto-301 client."""
+
 from __future__ import annotations
 
 import json
@@ -6,8 +7,6 @@ import json
 import httpx
 import pytest
 import respx
-from pydantic import SecretStr
-
 from pacer.config import Settings, get_settings
 from pacer.monetization.cloudflare import (
     CLOUDFLARE_API_BASE,
@@ -16,14 +15,13 @@ from pacer.monetization.cloudflare import (
     _build_redirect_payload,
     configure_cloudflare_redirect,
 )
-
+from pydantic import SecretStr
 
 # ─── Payload shape ───────────────────────────────────────────────────────
 
+
 def test_build_redirect_payload_shape():
-    p = _build_redirect_payload(
-        "example.com", "https://1commercesolutions.com/resources"
-    )
+    p = _build_redirect_payload("example.com", "https://1commercesolutions.com/resources")
     assert p["rules"][0]["action"] == "redirect"
     params = p["rules"][0]["action_parameters"]["from_value"]
     assert params["status_code"] == 301
@@ -42,8 +40,7 @@ def test_build_redirect_payload_shape():
 async def test_client_installs_redirect_rule():
     zone = "zone-abc"
     route = respx.put(
-        f"{CLOUDFLARE_API_BASE}/zones/{zone}/rulesets/phases/"
-        f"{REDIRECT_PHASE}/entrypoint"
+        f"{CLOUDFLARE_API_BASE}/zones/{zone}/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
     ).mock(
         return_value=httpx.Response(
             200,
@@ -57,9 +54,7 @@ async def test_client_installs_redirect_rule():
     )
 
     client = CloudflareRedirectClient(api_token="tok-123", default_zone_id=zone)
-    result = await client.set_single_redirect(
-        "example.com", "https://1commercesolutions.com/tools"
-    )
+    result = await client.set_single_redirect("example.com", "https://1commercesolutions.com/tools")
 
     assert route.called
     req = route.calls[0].request
@@ -80,8 +75,7 @@ async def test_client_installs_redirect_rule():
 async def test_client_returns_error_on_4xx():
     zone = "zone-abc"
     respx.put(
-        f"{CLOUDFLARE_API_BASE}/zones/{zone}/rulesets/phases/"
-        f"{REDIRECT_PHASE}/entrypoint"
+        f"{CLOUDFLARE_API_BASE}/zones/{zone}/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
     ).mock(
         return_value=httpx.Response(
             403,
@@ -105,9 +99,7 @@ async def test_client_returns_error_on_4xx():
 @pytest.mark.asyncio
 async def test_client_errors_when_no_zone():
     client = CloudflareRedirectClient(api_token="tok", default_zone_id="")
-    result = await client.set_single_redirect(
-        "example.com", "https://1commercesolutions.com/"
-    )
+    result = await client.set_single_redirect("example.com", "https://1commercesolutions.com/")
     assert result.status == "error"
     assert "zone" in (result.error or "").lower()
 
@@ -117,13 +109,8 @@ async def test_client_errors_when_no_zone():
 async def test_client_uses_explicit_zone_override():
     """Per-call zone_id wins over default."""
     respx.put(
-        f"{CLOUDFLARE_API_BASE}/zones/override-zone/rulesets/phases/"
-        f"{REDIRECT_PHASE}/entrypoint"
-    ).mock(
-        return_value=httpx.Response(
-            200, json={"result": {"id": "rs-1"}, "success": True}
-        )
-    )
+        f"{CLOUDFLARE_API_BASE}/zones/override-zone/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
+    ).mock(return_value=httpx.Response(200, json={"result": {"id": "rs-1"}, "success": True}))
 
     client = CloudflareRedirectClient(api_token="tok", default_zone_id="default-zone")
     result = await client.set_single_redirect(
@@ -177,13 +164,8 @@ async def test_facade_hits_api_when_token_present(monkeypatch):
     monkeypatch.setattr("pacer.monetization.cloudflare.get_settings", _stub)
 
     route = respx.put(
-        f"{CLOUDFLARE_API_BASE}/zones/zone-live/rulesets/phases/"
-        f"{REDIRECT_PHASE}/entrypoint"
-    ).mock(
-        return_value=httpx.Response(
-            200, json={"result": {"id": "rs-live"}, "success": True}
-        )
-    )
+        f"{CLOUDFLARE_API_BASE}/zones/zone-live/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
+    ).mock(return_value=httpx.Response(200, json={"result": {"id": "rs-live"}, "success": True}))
 
     result = await configure_cloudflare_redirect(
         "example.com", "https://1commercesolutions.com/alternatives"
@@ -316,13 +298,8 @@ async def test_facade_respects_zone_override(monkeypatch):
     monkeypatch.setattr("pacer.monetization.cloudflare.get_settings", _stub)
 
     route = respx.put(
-        f"{CLOUDFLARE_API_BASE}/zones/zone-custom/rulesets/phases/"
-        f"{REDIRECT_PHASE}/entrypoint"
-    ).mock(
-        return_value=httpx.Response(
-            200, json={"result": {"id": "rs"}, "success": True}
-        )
-    )
+        f"{CLOUDFLARE_API_BASE}/zones/zone-custom/rulesets/phases/" f"{REDIRECT_PHASE}/entrypoint"
+    ).mock(return_value=httpx.Response(200, json={"result": {"id": "rs"}, "success": True}))
 
     result = await configure_cloudflare_redirect(
         "example.com",

@@ -17,6 +17,7 @@ portfolio), governed by the standard 1COMMERCE LLC aftermarket terms. No
 partner beneficial-ownership concern (partner receives 1099-NEC rev share
 on gross proceeds, same as parking/affiliate revenue).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,12 +32,12 @@ from pacer.config import get_settings
 class ListingResult:
     """Normalized response across all three backends."""
 
-    provider: str             # "afternic" | "sedo" | "dan"
+    provider: str  # "afternic" | "sedo" | "dan"
     domain: str
-    listing_id: str | None    # provider-side record id (may be None on dry-run)
+    listing_id: str | None  # provider-side record id (may be None on dry-run)
     listing_url: str
     bin_price_cents: int
-    status: str               # "listed" | "pending" | "dry_run" | "error"
+    status: str  # "listed" | "pending" | "dry_run" | "error"
     error: str | None = None
 
 
@@ -65,9 +66,7 @@ class AfternicClient:
         self._enabled = settings.aftermarket_listings_enabled
         self._http = client or httpx.AsyncClient(timeout=20.0)
 
-    async def list_for_sale(
-        self, domain: str, bin_price_cents: int
-    ) -> ListingResult:
+    async def list_for_sale(self, domain: str, bin_price_cents: int) -> ListingResult:
         if not self._key or not self._enabled:
             logger.info(
                 "afternic.list_for_sale_dry_run domain={} price_cents={} reason={}",
@@ -101,9 +100,7 @@ class AfternicClient:
         bin_price_cents: int,
     ) -> ListingResult:
         try:
-            resp = await self._http.post(
-                f"{self._base}/listings", json=body, headers=headers
-            )
+            resp = await self._http.post(f"{self._base}/listings", json=body, headers=headers)
             resp.raise_for_status()
             data = resp.json()
             return ListingResult(
@@ -152,9 +149,7 @@ class SedoClient:
         self._enabled = settings.aftermarket_listings_enabled
         self._http = client or httpx.AsyncClient(timeout=20.0)
 
-    async def list_for_sale(
-        self, domain: str, bin_price_cents: int
-    ) -> ListingResult:
+    async def list_for_sale(self, domain: str, bin_price_cents: int) -> ListingResult:
         listing_url = f"https://sedo.com/search/details/?partnerid={self._partner}&domain={domain}"
         if not self._signkey or not self._enabled:
             logger.info(
@@ -238,9 +233,7 @@ class DanClient:
         self._enabled = settings.aftermarket_listings_enabled
         self._http = client or httpx.AsyncClient(timeout=20.0)
 
-    async def list_for_sale(
-        self, domain: str, bin_price_cents: int
-    ) -> ListingResult:
+    async def list_for_sale(self, domain: str, bin_price_cents: int) -> ListingResult:
         return await self._list(domain, bin_price_cents, monthly_cents=None)
 
     async def list_lease_to_own(

@@ -1,4 +1,5 @@
 """Pydantic settings with LLC compliance tagging."""
+
 from __future__ import annotations
 
 from functools import lru_cache

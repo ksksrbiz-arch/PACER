@@ -1,4 +1,5 @@
 """Pipeline 1 — PACER PCL + RECAP bankruptcies → domain candidates."""
+
 from __future__ import annotations
 
 from loguru import logger

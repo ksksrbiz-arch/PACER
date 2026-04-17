@@ -1,8 +1,8 @@
 """Unit tests for the monetization strategy router."""
+
 from __future__ import annotations
 
 import pytest
-
 from pacer.models.domain_candidate import (
     DomainCandidate,
     PipelineSource,
@@ -39,7 +39,7 @@ def candidate() -> DomainCandidate:
         (75, "301_redirect"),
         (60, "301_redirect"),  # >= dropcatch threshold
         (59, "parking"),
-        (40, "parking"),       # >= parking threshold
+        (40, "parking"),  # >= parking threshold
         (39, "aftermarket"),
         (0, "aftermarket"),
         (None, "aftermarket"),

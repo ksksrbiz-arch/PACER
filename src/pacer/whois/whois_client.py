@@ -53,7 +53,7 @@ def _coerce_status(value: Any) -> tuple[str, ...]:
         return ()
     if isinstance(value, str):
         return (value,)
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return tuple(str(v) for v in value if v)
     return (str(value),)
 

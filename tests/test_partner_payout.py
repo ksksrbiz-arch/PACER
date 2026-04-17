@@ -1,8 +1,8 @@
 """Partner payout math + CTA/BOI guardrails."""
+
 from __future__ import annotations
 
 import pytest
-
 from pacer.partners.payout import compute_payout
 
 

@@ -1,8 +1,8 @@
 """Auction / LTO / yield-score coverage for the monetization router."""
+
 from __future__ import annotations
 
 import pytest
-
 from pacer.models.domain_candidate import (
     DomainCandidate,
     PipelineSource,
@@ -104,23 +104,14 @@ def test_auction_tier_ignored_without_yield_arg(router: MonetizationRouter) -> N
 # --- choose_strategy: LTO tier ------------------------------------------
 def test_lto_requires_yield_and_commercial(router: MonetizationRouter) -> None:
     # yield ≥ 70 but commercial < 50 → falls through to 301/parking
-    assert (
-        router.choose_strategy(score=75, yield_s=75.0, commercial=20.0)
-        == "301_redirect"
-    )
+    assert router.choose_strategy(score=75, yield_s=75.0, commercial=20.0) == "301_redirect"
     # yield ≥ 70 AND commercial ≥ 50 → LTO
-    assert (
-        router.choose_strategy(score=75, yield_s=75.0, commercial=60.0)
-        == "lease_to_own"
-    )
+    assert router.choose_strategy(score=75, yield_s=75.0, commercial=60.0) == "lease_to_own"
 
 
 def test_auction_beats_lto(router: MonetizationRouter) -> None:
     # Both thresholds met — auction wins
-    assert (
-        router.choose_strategy(score=99, yield_s=95.0, commercial=99.0)
-        == "auction_bin"
-    )
+    assert router.choose_strategy(score=99, yield_s=95.0, commercial=99.0) == "auction_bin"
 
 
 # --- route() wiring ------------------------------------------------------

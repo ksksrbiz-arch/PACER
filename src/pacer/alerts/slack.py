@@ -4,6 +4,7 @@ All sends are best-effort: a failed webhook never raises into the caller.
 Webhook URL comes from :class:`pacer.config.Settings.slack_webhook_url`;
 if it's empty, calls become no-ops (useful in dev / CI).
 """
+
 from __future__ import annotations
 
 import httpx
@@ -48,6 +49,4 @@ async def alert_pipeline_complete(
 async def alert_pipeline_error(error: str) -> None:
     """Pipeline failure alert — paged to ops."""
     settings = get_settings()
-    await send_slack(
-        f"🚨 *PACER pipeline ERROR* | {error} | Entity: {settings.llc_entity}"
-    )
+    await send_slack(f"🚨 *PACER pipeline ERROR* | {error} | Entity: {settings.llc_entity}")
