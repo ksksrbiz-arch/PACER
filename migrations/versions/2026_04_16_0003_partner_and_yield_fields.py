@@ -28,8 +28,6 @@ partner_status_enum = sa.Enum(
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    partner_status_enum.create(bind, checkfirst=True)
 
     # ── partners table ────────────────────────────────────────────
     op.create_table(
