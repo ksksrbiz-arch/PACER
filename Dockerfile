@@ -16,11 +16,10 @@ WORKDIR /app
 
 # Copy lock files + README (pyproject.toml declares readme = "README.md")
 COPY pyproject.toml README.md ./
-COPY poetry.lock* ./
-RUN poetry install --only main --no-root --no-interaction
+RUN poetry lock && poetry install --only main --no-root --no-interaction
 
 COPY . .
-RUN poetry install --only main --no-interaction
+RUN poetry lock && poetry install --only main --no-interaction
 
 RUN useradd -m -u 10001 pacer
 USER pacer
