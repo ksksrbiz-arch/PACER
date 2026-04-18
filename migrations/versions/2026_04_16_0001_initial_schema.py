@@ -52,10 +52,6 @@ event_severity_enum = sa.Enum(
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    pipeline_source_enum.create(bind, checkfirst=True)
-    candidate_status_enum.create(bind, checkfirst=True)
-    event_severity_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "domain_candidates",
