@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "pacer"
+version = "1.0.0"
+description = "PACER - Platform Automated Control and Error Reduction"
+authors = ["PACER Team"]
+readme = "README.md"
+packages = [{include = "pacer", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^2.0.0"
+tenacity = "^8.2.0"
+structlog = "^24.0.0"
+prometheus-client = "^0.20.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.23.0"
+black = "^24.0.0"
+ruff = "^0.3.0"
+mypy = "^1.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--strict-markers --cov=src/pacer --cov-report=term-missing"
