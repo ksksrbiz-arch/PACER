@@ -1,7 +1,5 @@
 """Test suite for monitoring components."""
 
-import pytest
-from datetime import datetime, timedelta
 from pacer.monitoring import HealthCheck, HealthStatus, MetricsCollector
 
 

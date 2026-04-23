@@ -1,8 +1,8 @@
 """Test suite for reliability components."""
 
-import pytest
 import time
-from pacer.reliability import RetryPolicy, CircuitBreaker, CircuitState
+
+from pacer.reliability import CircuitBreaker, CircuitState, RetryPolicy
 
 
 class TestRetryPolicy:

@@ -1,7 +1,7 @@
 """Test suite for automation framework."""
 
-import pytest
 from datetime import datetime
+
 from pacer.automation import AutomationTask, TaskConfig, TaskStatus
 from pacer.reliability import RetryPolicy
 

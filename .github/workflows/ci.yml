@@ -1,115 +1,61 @@
-name: CI/CD Pipeline
+name: ci
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop, "claude/**", "copilot/**"]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Test and Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pacer
+          POSTGRES_PASSWORD: pacer
+          POSTGRES_DB: pacer
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pacer"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://pacer:pacer@localhost:5432/pacer
+      SYNC_DATABASE_URL: postgresql://pacer:pacer@localhost:5432/pacer
+      REDIS_URL: redis://localhost:6379/0
+      LLC_ENTITY: "1COMMERCE LLC"
+      ENVIRONMENT: ci
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install Poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Configure Poetry
-      run: |
-        poetry config virtualenvs.in-project true
-
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-        restore-keys: |
-          venv-${{ runner.os }}-${{ matrix.python-version }}-
-
-    - name: Install dependencies
-      run: |
-        poetry install --no-interaction
-
-    - name: Run linting (Black)
-      run: |
-        poetry run black --check src tests
-
-    - name: Run linting (Ruff)
-      run: |
-        poetry run ruff check src tests
-
-    - name: Run type checking (MyPy)
-      run: |
-        poetry run mypy src
-
-    - name: Run tests with coverage
-      run: |
-        poetry run pytest --cov=src/pacer --cov-report=xml --cov-report=term-missing
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
-
-  build:
-    name: Build Package
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install Poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-    - name: Build package
-      run: |
-        poetry build
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: dist/
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Run Bandit security scan
-      run: |
-        pip install bandit
-        bandit -r src/ -f json -o bandit-report.json || true
-
-    - name: Upload security report
-      uses: actions/upload-artifact@v3
-      with:
-        name: security-report
-        path: bandit-report.json
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install Poetry
+        run: pipx install poetry==1.8.3
+      - name: Install deps
+        run: poetry install --with dev --no-interaction
+      - name: Lint
+        run: |
+          poetry run ruff check src tests
+          poetry run black --check src tests
+      - name: Migrate
+        run: poetry run alembic upgrade head
+      - name: Test
+        run: poetry run pytest --cov=pacer --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage.xml

@@ -1,8 +1,7 @@
 """Metrics collection using Prometheus client."""
 
-from typing import Dict, Optional
-from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
 import structlog
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 logger = structlog.get_logger(__name__)
 
@@ -17,7 +16,7 @@ class MetricsCollector:
         namespace: Metric namespace prefix
     """
 
-    def __init__(self, namespace: str = "pacer", registry: Optional[CollectorRegistry] = None):
+    def __init__(self, namespace: str = "pacer", registry: CollectorRegistry | None = None):
         """
         Initialize metrics collector.
 

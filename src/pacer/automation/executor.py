@@ -1,7 +1,8 @@
 """Task executor with thread pool and async support."""
 
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import List, Optional, Dict, Any
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any
+
 import structlog
 
 from .task import AutomationTask, TaskResult
@@ -27,8 +28,8 @@ class TaskExecutor:
             max_workers: Maximum number of concurrent workers
         """
         self.max_workers = max_workers
-        self._executor: Optional[ThreadPoolExecutor] = None
-        self._active_tasks: Dict[str, Future] = {}
+        self._executor: ThreadPoolExecutor | None = None
+        self._active_tasks: dict[str, Future] = {}
 
     def __enter__(self) -> "TaskExecutor":
         """Enter context manager."""
@@ -66,8 +67,8 @@ class TaskExecutor:
         return future
 
     def execute_batch(
-        self, tasks: List[AutomationTask], *args: Any, **kwargs: Any
-    ) -> List[TaskResult]:
+        self, tasks: list[AutomationTask], *args: Any, **kwargs: Any
+    ) -> list[TaskResult]:
         """
         Execute multiple tasks in parallel.
 

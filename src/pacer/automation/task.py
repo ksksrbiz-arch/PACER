@@ -1,19 +1,21 @@
 """Task configuration and execution with comprehensive error handling."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Callable, Optional, Dict, List
+from enum import StrEnum
+from typing import Any
+
 import structlog
 
-from pacer.reliability import RetryPolicy, CircuitBreaker
-from pacer.validation import Validator
 from pacer.monitoring import HealthCheck, MetricsCollector
+from pacer.reliability import CircuitBreaker, RetryPolicy
+from pacer.validation import Validator
 
 logger = structlog.get_logger(__name__)
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """Task execution status."""
 
     PENDING = "pending"
@@ -30,15 +32,15 @@ class TaskResult:
 
     task_id: str
     status: TaskStatus
-    result: Optional[Any] = None
-    error: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    result: Any | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     attempts: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float | None:
         """Calculate execution duration in seconds."""
         if self.started_at and self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
@@ -54,13 +56,13 @@ class TaskResult:
 class TaskConfig:
     """Configuration for automation tasks."""
 
-    retry_policy: Optional[RetryPolicy] = None
+    retry_policy: RetryPolicy | None = None
     enable_circuit_breaker: bool = True
     enable_health_check: bool = True
     enable_metrics: bool = True
     enable_validation: bool = True
-    timeout_seconds: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    timeout_seconds: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class AutomationTask:
@@ -79,8 +81,8 @@ class AutomationTask:
     def __init__(
         self,
         task_id: str,
-        config: Optional[TaskConfig] = None,
-        func: Optional[Callable[..., Any]] = None,
+        config: TaskConfig | None = None,
+        func: Callable[..., Any] | None = None,
     ):
         """
         Initialize automation task.
@@ -93,10 +95,10 @@ class AutomationTask:
         self.task_id = task_id
         self.config = config or TaskConfig()
         self.func = func
-        self._circuit_breaker: Optional[CircuitBreaker] = None
-        self._health_check: Optional[HealthCheck] = None
-        self._metrics: Optional[MetricsCollector] = None
-        self._validator: Optional[Validator] = None
+        self._circuit_breaker: CircuitBreaker | None = None
+        self._health_check: HealthCheck | None = None
+        self._metrics: MetricsCollector | None = None
+        self._validator: Validator | None = None
 
         self._setup_components()
 

@@ -1,7 +1,8 @@
 """Test suite for validation system."""
 
 import pytest
-from pacer.validation import Validator, ValidationError, ValidationRule
+
+from pacer.validation import ValidationError, ValidationRule, Validator
 
 
 class TestValidationRule:

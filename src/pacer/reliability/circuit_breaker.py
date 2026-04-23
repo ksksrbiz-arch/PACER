@@ -1,15 +1,15 @@
 """Circuit breaker pattern for fault isolation."""
 
-from enum import Enum
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
+from enum import StrEnum
+
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     """Circuit breaker states."""
 
     CLOSED = "closed"  # Normal operation
@@ -41,7 +41,7 @@ class CircuitBreaker:
     state: CircuitState = field(default=CircuitState.CLOSED, init=False)
     failure_count: int = field(default=0, init=False)
     success_count: int = field(default=0, init=False)
-    last_failure_time: Optional[datetime] = field(default=None, init=False)
+    last_failure_time: datetime | None = field(default=None, init=False)
 
     def can_execute(self) -> bool:
         """

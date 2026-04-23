@@ -1,8 +1,7 @@
 """Retry policy with configurable backoff strategies."""
 
-from dataclasses import dataclass
-from typing import Optional
 import random
+from dataclasses import dataclass
 
 
 @dataclass

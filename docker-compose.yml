@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pacer
+      POSTGRES_PASSWORD: pacer
+      POSTGRES_DB: pacer
+    volumes:
+      - pacer_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pacer"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - pacer_redis:/data
+
+  pacer:
+    build: .
+    image: pacer:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./logs:/app/logs
+    entrypoint: []
+    command: ["python", "-m", "pacer.main", "schedule"]
+
+volumes:
+  pacer_pg:
+  pacer_redis:

@@ -1,15 +1,16 @@
 """Health check system for monitoring task status."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Optional, Dict, Any
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """Health check status values."""
 
     HEALTHY = "healthy"
@@ -37,12 +38,12 @@ class HealthCheck:
     unhealthy_threshold: float = 0.5
     degraded_threshold: float = 0.2
     status: HealthStatus = field(default=HealthStatus.UNKNOWN, init=False)
-    last_check_time: Optional[datetime] = field(default=None, init=False)
+    last_check_time: datetime | None = field(default=None, init=False)
     total_checks: int = field(default=0, init=False)
     failed_checks: int = field(default=0, init=False)
-    metadata: Dict[str, Any] = field(default_factory=dict, init=False)
+    metadata: dict[str, Any] = field(default_factory=dict, init=False)
 
-    def record_check(self, success: bool, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def record_check(self, success: bool, metadata: dict[str, Any] | None = None) -> None:
         """
         Record health check result.
 
@@ -98,7 +99,7 @@ class HealthCheck:
         elapsed = (datetime.utcnow() - self.last_check_time).total_seconds()
         return elapsed >= self.check_interval
 
-    def get_status_report(self) -> Dict[str, Any]:
+    def get_status_report(self) -> dict[str, Any]:
         """
         Get detailed health status report.
 

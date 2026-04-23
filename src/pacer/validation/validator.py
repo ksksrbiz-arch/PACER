@@ -1,7 +1,9 @@
 """Data validation with configurable rules."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Dict
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -10,7 +12,7 @@ logger = structlog.get_logger(__name__)
 class ValidationError(Exception):
     """Raised when validation fails."""
 
-    def __init__(self, message: str, field: Optional[str] = None):
+    def __init__(self, message: str, field: str | None = None):
         """
         Initialize validation error.
 
@@ -53,7 +55,7 @@ class ValidationRule:
         except Exception as e:
             if isinstance(e, ValidationError):
                 raise
-            raise ValidationError(f"Validation error: {str(e)}")
+            raise ValidationError(f"Validation error: {str(e)}") from e
 
 
 class Validator:
@@ -65,7 +67,7 @@ class Validator:
 
     def __init__(self):
         """Initialize validator."""
-        self.rules: Dict[str, List[ValidationRule]] = {}
+        self.rules: dict[str, list[ValidationRule]] = {}
         logger.debug("validator_initialized")
 
     def add_rule(self, field: str, rule: ValidationRule) -> None:
@@ -108,7 +110,7 @@ class Validator:
                 )
                 raise
 
-    def validate_dict(self, data: Dict[str, Any]) -> None:
+    def validate_dict(self, data: dict[str, Any]) -> None:
         """
         Validate dictionary of fields.
 
@@ -141,7 +143,7 @@ class Validator:
 
     @staticmethod
     def min_length(
-        length: int, error_message: Optional[str] = None
+        length: int, error_message: str | None = None
     ) -> ValidationRule:
         """Create rule that checks minimum length."""
         msg = error_message or f"Value must be at least {length} characters"
@@ -153,7 +155,7 @@ class Validator:
 
     @staticmethod
     def max_length(
-        length: int, error_message: Optional[str] = None
+        length: int, error_message: str | None = None
     ) -> ValidationRule:
         """Create rule that checks maximum length."""
         msg = error_message or f"Value must be at most {length} characters"
@@ -165,7 +167,7 @@ class Validator:
 
     @staticmethod
     def in_range(
-        min_val: float, max_val: float, error_message: Optional[str] = None
+        min_val: float, max_val: float, error_message: str | None = None
     ) -> ValidationRule:
         """Create rule that checks value is in range."""
         msg = error_message or f"Value must be between {min_val} and {max_val}"
@@ -177,7 +179,7 @@ class Validator:
 
     @staticmethod
     def matches_pattern(
-        pattern: str, error_message: Optional[str] = None
+        pattern: str, error_message: str | None = None
     ) -> ValidationRule:
         """Create rule that checks value matches regex pattern."""
         import re
@@ -191,7 +193,7 @@ class Validator:
         )
 
     @staticmethod
-    def is_type(expected_type: type, error_message: Optional[str] = None) -> ValidationRule:
+    def is_type(expected_type: type, error_message: str | None = None) -> ValidationRule:
         """Create rule that checks value type."""
         msg = error_message or f"Value must be of type {expected_type.__name__}"
         return ValidationRule(

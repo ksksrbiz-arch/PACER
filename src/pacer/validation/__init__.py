@@ -1,5 +1,5 @@
 """Input/output validation system."""
 
-from .validator import Validator, ValidationError, ValidationRule
+from .validator import ValidationError, ValidationRule, Validator
 
 __all__ = ["Validator", "ValidationError", "ValidationRule"]

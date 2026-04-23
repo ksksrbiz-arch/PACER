@@ -1,72 +1,80 @@
-# PACER
+# PACER — Distressed-Domain Arbitrage & RWA Tokenization
 
-**Platform Automated Control and Error Reduction**
+**Operating entity:** 1COMMERCE LLC (Canby, OR)
+**Status:** Production-grade scaffold, deployment-ready.
 
-A robust automation framework designed to ensure 100% reliability and zero-mistake execution of automated systems.
+PACER runs a daily pipeline that:
 
-## Features
+1. Discovers distressed SaaS/tech domains from PACER/RECAP, state SOS dissolutions, EDGAR filings, USPTO abandonments, UCC liens, and probate asset sales.
+2. Enriches company records → resolves active domains.
+3. Scores SEO equity via Ahrefs + topical relevance via GPT-4o.
+4. Catches premium domains during the pending-delete window via multi-registrar backorder (Dynadot primary, DropCatch/NameJet/GoDaddy fallbacks).
+5. Tokenizes qualifying domains as RWAs (Doma DOT/DST) with Securitize hybrid settlement to preserve Oregon DFR money-transmitter exemption.
+6. Monetizes via 301 redirects, competitor arbitrage outreach, parking/affiliate, yield stacking, and fractional sales.
 
-- **Error Handling**: Comprehensive exception handling with automatic recovery
-- **Retry Mechanisms**: Configurable retry logic with exponential backoff
-- **Circuit Breaker**: Prevents cascade failures in distributed systems
-- **Health Monitoring**: Real-time health checks and status reporting
-- **Audit Logging**: Complete audit trail of all system operations
-- **Validation**: Input/output validation to ensure data integrity
-- **Metrics**: Prometheus-compatible metrics for monitoring
-- **Testing**: Comprehensive test suite with high coverage
+All records are tagged `llc_entity="1COMMERCE LLC"` for audit compliance.
 
-## Installation
+---
 
-```bash
-poetry install
-```
-
-## Running Tests
+## Quick start
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-cd /home/ksksrbiz-arch/repos/PACER
-poetry run pytest --no-header -q --tb=short --no-cov
-```
-
-## Usage
-
-```python
-from pacer.automation import AutomationTask, TaskConfig
-from pacer.reliability import RetryPolicy
-
-# Configure task with error handling
-config = TaskConfig(
-    retry_policy=RetryPolicy(max_attempts=3, backoff_factor=2.0),
-    enable_circuit_breaker=True,
-    enable_health_check=True
-)
-
-# Create and execute task
-task = AutomationTask("my_task", config)
-result = task.execute()
+git clone git@github.com:ksksrbiz-arch/PACER.git pacer && cd pacer
+cp .env.example .env              # fill in secrets
+make deploy-prep                  # builds, runs migrations
+make docker-up                    # starts postgres + redis + pacer daemon
+make docker-logs                  # tails the scheduler
 ```
 
 ## Architecture
 
-- `src/pacer/automation/`: Core automation framework
-- `src/pacer/reliability/`: Retry, circuit breaker, and error recovery
-- `src/pacer/monitoring/`: Health checks and metrics
-- `src/pacer/validation/`: Input/output validation
-- `src/pacer/logging/`: Structured logging and audit trails
-
-## Development
-
-```bash
-# Format code
-poetry run black src tests
-
-# Lint code
-poetry run ruff src tests
-
-# Type check
-poetry run mypy src
-
-# Run tests with coverage
-poetry run pytest --cov
 ```
+src/pacer/
+├── main.py               # APScheduler entrypoint + resilience hooks
+├── config.py             # Pydantic settings with LLC tagging
+├── db.py                 # Async + sync engines
+├── models/               # DomainCandidate, ComplianceLog
+├── pipelines/            # 6 discovery pipelines, AsyncIO parallel
+├── pacer/pacer_client.py # PCL + RECAP with deep error handling
+├── utils/api_resilience.py
+├── scoring/              # Ahrefs batch + spam filter + GPT-4o relevance
+├── enrichment/           # company → domain resolution
+├── dropcatch/            # multi-registrar orchestrator
+├── rwa/                  # Doma + Securitize hybrid settlement
+├── monetization/         # 301, parking, outreach
+└── compliance/           # audit log, LLC tagging, KYC hooks
+```
+
+## Pipelines
+
+| # | Source                                      | Cadence | Module                              |
+|---|---------------------------------------------|---------|-------------------------------------|
+| 1 | PACER PCL + CourtListener RECAP             | Daily   | `pipelines/pacer_recap.py`          |
+| 2 | State SOS Dissolutions (OR, CA, DE, NY, TX) | Daily   | `pipelines/sos_dissolutions.py`     |
+| 3 | EDGAR Distressed Public Companies           | Daily   | `pipelines/edgar.py`                |
+| 4 | USPTO Abandoned Trademarks                  | Daily   | `pipelines/uspto.py`                |
+| 5 | UCC Liens & Judgment Distress               | Daily   | `pipelines/ucc_liens.py`            |
+| 6 | Probate / Estate Asset Sales                | Daily   | `pipelines/probate.py`              |
+
+All run inside a single `asyncio.gather` call. Failures are isolated per pipeline via the resilience decorator — one broken source does not halt the others.
+
+## Scoring thresholds
+
+- **≥ 60** → drop-catch + RWA candidate
+- **40–59** → parking / instant-flip candidate
+- **< 40** → discarded (log only)
+
+## Compliance posture
+
+- Every API call logged to `compliance_log` with LLC tag, timestamp, endpoint, and status.
+- RWA settlement routed through Securitize (or Doma custody) → Oregon DFR money-transmitter exemption path.
+- KYC/AML hooks wired for Securitize integration before first fractional sale.
+- Attorney opinion letter template available under `docs/dfr-exemption-opinion.md` (add before first tokenization).
+
+## Operating runbook
+
+See `SETUP.md` for VPS deploy, Alembic, Prometheus, and DFR exemption steps.
+
+## License
+
+Proprietary — all rights reserved, 1COMMERCE LLC.

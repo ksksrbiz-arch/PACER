@@ -1,16 +1,17 @@
 """Audit logging for complete traceability."""
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
-import json
+from enum import StrEnum
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """Audit event types."""
 
     TASK_STARTED = "task_started"
@@ -41,11 +42,11 @@ class AuditEvent:
     event_type: EventType
     task_id: str
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    details: Dict[str, Any] = field(default_factory=dict)
-    user: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
+    user: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary."""
         return {
             "event_type": self.event_type.value,
@@ -68,7 +69,7 @@ class AuditLogger:
     Maintains immutable audit trail of all system operations.
     """
 
-    def __init__(self, log_file: Optional[str] = None):
+    def __init__(self, log_file: str | None = None):
         """
         Initialize audit logger.
 
@@ -76,7 +77,7 @@ class AuditLogger:
             log_file: Optional file path for audit log persistence
         """
         self.log_file = log_file
-        self.events: List[AuditEvent] = []
+        self.events: list[AuditEvent] = []
         logger.info("audit_logger_initialized", log_file=log_file)
 
     def log_event(self, event: AuditEvent) -> None:
@@ -109,7 +110,7 @@ class AuditLogger:
             logger.error("audit_log_write_failed", error=str(e))
 
     def log_task_started(
-        self, task_id: str, config: Optional[Dict[str, Any]] = None
+        self, task_id: str, config: dict[str, Any] | None = None
     ) -> None:
         """Log task start event."""
         event = AuditEvent(
@@ -154,10 +155,10 @@ class AuditLogger:
 
     def get_events(
         self,
-        task_id: Optional[str] = None,
-        event_type: Optional[EventType] = None,
-        since: Optional[datetime] = None,
-    ) -> List[AuditEvent]:
+        task_id: str | None = None,
+        event_type: EventType | None = None,
+        since: datetime | None = None,
+    ) -> list[AuditEvent]:
         """
         Query audit events with filters.
 
@@ -182,7 +183,7 @@ class AuditLogger:
 
         return results
 
-    def get_event_count(self, event_type: Optional[EventType] = None) -> int:
+    def get_event_count(self, event_type: EventType | None = None) -> int:
         """
         Get count of audit events.
 

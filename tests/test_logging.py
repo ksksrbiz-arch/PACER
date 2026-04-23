@@ -1,8 +1,8 @@
 """Test suite for audit logging system."""
 
-import pytest
 from datetime import datetime
-from pacer.logging import AuditLogger, AuditEvent
+
+from pacer.logging import AuditEvent, AuditLogger
 from pacer.logging.audit import EventType
 
 

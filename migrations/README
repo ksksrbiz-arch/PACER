@@ -1,0 +1,10 @@
+Generic single-database configuration.
+
+Run migrations:
+    alembic upgrade head
+
+Create a new revision after modifying models:
+    alembic revision --autogenerate -m "short message"
+
+Downgrade one step:
+    alembic downgrade -1
