@@ -14,6 +14,8 @@ from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Statu
 from sqlalchemy import event, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+TIME_TOLERANCE = timedelta(seconds=30)
+
 
 def _enable_sqlite_fks(dbapi_conn, _):
     cur = dbapi_conn.cursor()
@@ -191,10 +193,10 @@ def test_parse_since_supports_common_units():
 
     now = datetime.now(UTC)
     parsed = _parse_since("24h")
-    assert abs((now - parsed) - timedelta(hours=24)) < timedelta(seconds=30)
+    assert abs((now - parsed) - timedelta(hours=24)) < TIME_TOLERANCE
 
     parsed2 = _parse_since("7d")
-    assert abs((now - parsed2) - timedelta(days=7)) < timedelta(seconds=30)
+    assert abs((now - parsed2) - timedelta(days=7)) < TIME_TOLERANCE
 
     with pytest.raises(BadParameter):
         _parse_since("later")

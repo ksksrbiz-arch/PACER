@@ -32,7 +32,9 @@ _SINCE_RE = re.compile(
 def _parse_since(since: str) -> datetime:
     m = _SINCE_RE.match(since)
     if not m:
-        raise click.BadParameter(f"--since must look like '1 hour ago', '30m', '2d', got {since!r}")
+        raise click.BadParameter(
+            f"--since must look like '1 hour ago' (or '1 hour'), '30m', '2d', got {since!r}"
+        )
 
     amount = int(m.group("amount"))
     unit = m.group("unit").lower()
@@ -74,7 +76,7 @@ async def _list_signals(
             filters.append(DomainCandidate.status == Status(status))
         if min_score is not None:
             filters.append(DomainCandidate.score.is_not(None))
-            filters.append(DomainCandidate.score >= float(min_score))
+            filters.append(DomainCandidate.score >= min_score)
         if filters:
             stmt = stmt.where(and_(*filters))
 
