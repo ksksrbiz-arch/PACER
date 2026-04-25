@@ -30,7 +30,7 @@ def _run(coro):
 @pytest.fixture
 def engine():
     eng = create_async_engine(
-        "sqlite+aiosqlite:///file:pacer-revenue-memdb?mode=memory&cache=shared&uri=true",
+        "sqlite+aiosqlite:///file:pacer-test-memdb?mode=memory&cache=shared&uri=true",
         future=True,
     )
     event.listen(eng.sync_engine, "connect", _enable_sqlite_fks)

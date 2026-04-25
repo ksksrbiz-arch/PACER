@@ -75,8 +75,9 @@ async def _list_signals(
         if status:
             filters.append(DomainCandidate.status == Status(status))
         if min_score is not None:
-            filters.append(DomainCandidate.score.is_not(None))
-            filters.append(DomainCandidate.score >= min_score)
+            filters.append(
+                and_(DomainCandidate.score.is_not(None), DomainCandidate.score >= min_score)
+            )
         if filters:
             stmt = stmt.where(and_(*filters))
 
@@ -143,7 +144,7 @@ def cmd_list_signals(
 ) -> None:
     """Dump recent distress signals as JSON for B2B feed consumers."""
     rows = asyncio.run(_list_signals(since, source, status, min_score, limit))
-    json.dump(rows, sys.stdout, indent=2, sort_keys=True, default=str)
+    json.dump(rows, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
 
 
