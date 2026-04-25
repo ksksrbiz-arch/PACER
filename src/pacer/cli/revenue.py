@@ -36,11 +36,15 @@ def _parse_since(since: str) -> datetime:
 
     amount = int(m.group("amount"))
     unit = m.group("unit").lower()
-    if unit.startswith(("minute", "min", "m")):
+    minute_units = {"m", "min", "mins", "minute", "minutes"}
+    hour_units = {"h", "hr", "hrs", "hour", "hours"}
+    day_units = {"d", "day", "days"}
+
+    if unit in minute_units:
         delta = timedelta(minutes=amount)
-    elif unit.startswith(("hour", "hr", "h")):
+    elif unit in hour_units:
         delta = timedelta(hours=amount)
-    elif unit.startswith(("day", "d")):
+    elif unit in day_units:
         delta = timedelta(days=amount)
     else:  # pragma: no cover
         raise click.BadParameter(f"unsupported unit: {unit}")

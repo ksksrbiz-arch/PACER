@@ -156,6 +156,7 @@ def test_revenue_list_signals_min_score_filter(patched_session, seeded_candidate
 def test_revenue_list_signals_bad_since_fails(patched_session, seeded_candidates, runner):
     result = _invoke(runner, ["revenue", "list-signals", "--since", "recently"])
     assert result.exit_code != 0
+    assert "--since must look like" in result.output
 
 
 def test_revenue_list_signals_limit_applies(patched_session, seeded_candidates, runner, engine):
