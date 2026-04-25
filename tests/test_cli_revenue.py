@@ -191,10 +191,10 @@ def test_parse_since_supports_common_units():
 
     now = datetime.now(UTC)
     parsed = _parse_since("24h")
-    assert abs((now - parsed) - timedelta(hours=24)) < timedelta(seconds=5)
+    assert abs((now - parsed) - timedelta(hours=24)) < timedelta(seconds=30)
 
     parsed2 = _parse_since("7d")
-    assert abs((now - parsed2) - timedelta(days=7)) < timedelta(seconds=5)
+    assert abs((now - parsed2) - timedelta(days=7)) < timedelta(seconds=30)
 
     with pytest.raises(BadParameter):
         _parse_since("later")

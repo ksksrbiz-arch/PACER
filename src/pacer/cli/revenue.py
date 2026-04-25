@@ -46,7 +46,7 @@ def _parse_since(since: str) -> datetime:
         delta = timedelta(hours=amount)
     elif unit in day_units:
         delta = timedelta(days=amount)
-    else:  # pragma: no cover
+    else:
         raise click.BadParameter(f"unsupported unit: {unit}")
     return datetime.now(UTC) - delta
 
