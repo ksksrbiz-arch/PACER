@@ -400,9 +400,11 @@ def cmd_dev_partners() -> None:
 # is fully defined. Keeps subgroup code out of main.py.
 from pacer.cli.monetization import cmd_monetization  # noqa: E402
 from pacer.cli.partners import cmd_partners  # noqa: E402
+from pacer.cli.revenue import cmd_revenue  # noqa: E402
 
 cli.add_command(cmd_monetization)
 cli.add_command(cmd_partners)
+cli.add_command(cmd_revenue)
 
 
 if __name__ == "__main__":  # pragma: no cover
