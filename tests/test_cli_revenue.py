@@ -7,8 +7,8 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from click.testing import CliRunner
 from click.exceptions import BadParameter
+from click.testing import CliRunner
 from pacer.models.base import Base
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from sqlalchemy import event, update
@@ -124,15 +124,10 @@ def test_revenue_list_signals_default_since_returns_recent(
     result = _invoke(runner, ["revenue", "list-signals"])
     assert result.exit_code == 0, result.output
     rows = json.loads(result.stdout)
-    domains = {r["domain"] for r in rows}
-    assert "edgar-fresh.com" in domains
-    assert "uspto-scored.com" in domains
-    assert "low-old.com" not in domains
+    assert {r["domain"] for r in rows} == {"edgar-fresh.com", "uspto-scored.com"}
 
 
-def test_revenue_list_signals_filters_source_and_status(
-    patched_session, seeded_candidates, runner
-):
+def test_revenue_list_signals_source_status_filter(patched_session, seeded_candidates, runner):
     result = _invoke(
         runner,
         [

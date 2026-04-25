@@ -36,7 +36,7 @@ def _parse_since(since: str) -> datetime:
 
     amount = int(m.group("amount"))
     unit = m.group("unit").lower()
-    if unit.startswith(("minute", "min", "m")) and not unit.startswith("month"):
+    if unit.startswith(("minute", "min", "m")):
         delta = timedelta(minutes=amount)
     elif unit.startswith(("hour", "hr", "h")):
         delta = timedelta(hours=amount)
@@ -81,8 +81,8 @@ async def _list_signals(
             "id": r.id,
             "domain": r.domain,
             "company_name": r.company_name,
-            "source": r.source.value if hasattr(r.source, "value") else str(r.source),
-            "status": r.status.value if hasattr(r.status, "value") else str(r.status),
+            "source": r.source.value,
+            "status": r.status.value,
             "score": r.score,
             "domain_rating": r.domain_rating,
             "backlinks": r.backlinks,
