@@ -9,7 +9,6 @@ to a no-op so tests don't need a real DB for audit writes.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -19,7 +18,6 @@ from pacer.models.base import Base
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from sqlalchemy import event, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
 
 # ─── DB helpers ──────────────────────────────────────────────────────────────
 

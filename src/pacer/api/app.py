@@ -26,7 +26,6 @@ Usage
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Query
@@ -140,7 +139,9 @@ async def list_signals(
             content={"detail": f"'since' must be like '1h', '30m', '7d'. Got: {since!r}"},
         )
 
-    rows = await _list_signals(since=since, source=source, status=status, min_score=min_score, limit=limit)
+    rows = await _list_signals(
+        since=since, source=source, status=status, min_score=min_score, limit=limit
+    )
 
     await record_event(
         event_type="api_signals_query",
