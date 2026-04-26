@@ -395,6 +395,35 @@ def cmd_dev_partners() -> None:
     asyncio.run(show_partners_summary())
 
 
+# ─────────────────────────── API server ──────────────────────────────────────
+
+
+@cli.group("api")
+def cmd_api() -> None:
+    """REST API server for Tier-1 data-licensing feed."""
+
+
+@cmd_api.command("serve")
+@click.option("--host", default=None, help="Bind address (default: settings.api_host).")
+@click.option("--port", default=None, type=int, help="TCP port (default: settings.api_port).")
+@click.option(
+    "--reload",
+    is_flag=True,
+    default=False,
+    help="Enable auto-reload (development only).",
+)
+def cmd_api_serve(host: str | None, port: int | None, reload: bool) -> None:
+    """Start the PACER signal-feed API server (blocking)."""
+    import uvicorn
+
+    from pacer.api.app import app  # noqa: PLC0415
+
+    _host = host or settings.api_host
+    _port = port or settings.api_port
+    logger.info("api_serve_start host={} port={} reload={}", _host, _port, reload)
+    uvicorn.run(app, host=_host, port=_port, reload=reload)
+
+
 # ─────────────────────────── business subgroups ─────────────────────
 # Imported at module bottom so the subgroups attach after the root `cli`
 # is fully defined. Keeps subgroup code out of main.py.
