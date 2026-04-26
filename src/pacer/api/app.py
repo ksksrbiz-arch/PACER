@@ -28,6 +28,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+import click
 from fastapi import Depends, FastAPI, Query
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -133,7 +134,7 @@ async def list_signals(
     # Validate lookback window — surface a 422 with a human-readable message.
     try:
         _parse_since(since)
-    except Exception:
+    except click.BadParameter:
         return JSONResponse(
             status_code=422,
             content={"detail": f"'since' must be like '1h', '30m', '7d'. Got: {since!r}"},

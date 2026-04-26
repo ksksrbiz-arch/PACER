@@ -140,7 +140,9 @@ class Settings(BaseSettings):
     # Shared secret sent in `X-API-Key` header by data-feed API callers.
     # Leave blank to disable key enforcement (useful in development).
     api_key: SecretStr = SecretStr("")
-    api_host: str = "0.0.0.0"  # noqa: S104 — bind addr, not user-visible
+    # Bind address for the API server. Defaults to localhost for safety;
+    # set to 0.0.0.0 (or the Docker service name) in production/compose.
+    api_host: str = "127.0.0.1"
     api_port: int = 8000
 
     # ─── Env ─────────────────────────────────────────────────────────

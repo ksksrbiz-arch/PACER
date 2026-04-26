@@ -212,9 +212,7 @@ async def test_signals_default_returns_recent_rows(client, seeded):
     assert "count" in data
     assert "results" in data
     domains = {r["domain"] for r in data["results"]}
-    assert "edgar-api.com" in domains
-    assert "uspto-api.com" in domains
-    assert "old-api.com" not in domains
+    assert domains == {"edgar-api.com", "uspto-api.com"}
 
 
 # ─── Filters ─────────────────────────────────────────────────────────────────
