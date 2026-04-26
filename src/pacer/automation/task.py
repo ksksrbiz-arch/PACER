@@ -203,9 +203,7 @@ class AutomationTask:
 
         return result
 
-    def _execute_with_retry(
-        self, args: tuple, kwargs: dict, result: TaskResult
-    ) -> Any:
+    def _execute_with_retry(self, args: tuple, kwargs: dict, result: TaskResult) -> Any:
         """Execute function with retry logic."""
         if not self.func:
             raise ValueError("No function provided for execution")

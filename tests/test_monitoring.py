@@ -38,11 +38,7 @@ class TestHealthCheck:
 
     def test_degraded_status(self):
         """Test degraded status between healthy and unhealthy."""
-        health = HealthCheck(
-            "test_service",
-            degraded_threshold=0.2,
-            unhealthy_threshold=0.5
-        )
+        health = HealthCheck("test_service", degraded_threshold=0.2, unhealthy_threshold=0.5)
 
         # 3 failures out of 10 checks = 30% (degraded)
         for i in range(10):

@@ -106,9 +106,7 @@ class HealthCheck:
         Returns:
             Dictionary with health metrics
         """
-        failure_rate = (
-            self.failed_checks / self.total_checks if self.total_checks > 0 else 0.0
-        )
+        failure_rate = self.failed_checks / self.total_checks if self.total_checks > 0 else 0.0
 
         return {
             "name": self.name,
@@ -116,9 +114,7 @@ class HealthCheck:
             "total_checks": self.total_checks,
             "failed_checks": self.failed_checks,
             "failure_rate": failure_rate,
-            "last_check_time": self.last_check_time.isoformat()
-            if self.last_check_time
-            else None,
+            "last_check_time": self.last_check_time.isoformat() if self.last_check_time else None,
             "metadata": self.metadata,
         }
 

@@ -1,7 +1,6 @@
 """Test suite for validation system."""
 
 import pytest
-
 from pacer.validation import ValidationError, ValidationRule, Validator
 
 
@@ -11,9 +10,7 @@ class TestValidationRule:
     def test_valid_rule(self):
         """Test rule with valid input."""
         rule = ValidationRule(
-            name="positive",
-            validator=lambda x: x > 0,
-            error_message="Value must be positive"
+            name="positive", validator=lambda x: x > 0, error_message="Value must be positive"
         )
 
         # Should not raise
@@ -22,9 +19,7 @@ class TestValidationRule:
     def test_invalid_rule(self):
         """Test rule with invalid input."""
         rule = ValidationRule(
-            name="positive",
-            validator=lambda x: x > 0,
-            error_message="Value must be positive"
+            name="positive", validator=lambda x: x > 0, error_message="Value must be positive"
         )
 
         with pytest.raises(ValidationError) as exc_info:

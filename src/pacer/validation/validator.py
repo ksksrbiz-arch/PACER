@@ -142,9 +142,7 @@ class Validator:
         )
 
     @staticmethod
-    def min_length(
-        length: int, error_message: str | None = None
-    ) -> ValidationRule:
+    def min_length(length: int, error_message: str | None = None) -> ValidationRule:
         """Create rule that checks minimum length."""
         msg = error_message or f"Value must be at least {length} characters"
         return ValidationRule(
@@ -154,9 +152,7 @@ class Validator:
         )
 
     @staticmethod
-    def max_length(
-        length: int, error_message: str | None = None
-    ) -> ValidationRule:
+    def max_length(length: int, error_message: str | None = None) -> ValidationRule:
         """Create rule that checks maximum length."""
         msg = error_message or f"Value must be at most {length} characters"
         return ValidationRule(
@@ -178,9 +174,7 @@ class Validator:
         )
 
     @staticmethod
-    def matches_pattern(
-        pattern: str, error_message: str | None = None
-    ) -> ValidationRule:
+    def matches_pattern(pattern: str, error_message: str | None = None) -> ValidationRule:
         """Create rule that checks value matches regex pattern."""
         import re
 

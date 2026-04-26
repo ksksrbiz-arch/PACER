@@ -12,9 +12,7 @@ class TestAuditEvent:
     def test_event_creation(self):
         """Test creating audit event."""
         event = AuditEvent(
-            event_type=EventType.TASK_STARTED,
-            task_id="test_task",
-            details={"config": {"retry": 3}}
+            event_type=EventType.TASK_STARTED, task_id="test_task", details={"config": {"retry": 3}}
         )
 
         assert event.event_type == EventType.TASK_STARTED
@@ -23,10 +21,7 @@ class TestAuditEvent:
 
     def test_to_dict(self):
         """Test converting event to dictionary."""
-        event = AuditEvent(
-            event_type=EventType.TASK_COMPLETED,
-            task_id="test_task"
-        )
+        event = AuditEvent(event_type=EventType.TASK_COMPLETED, task_id="test_task")
 
         event_dict = event.to_dict()
 
@@ -36,10 +31,7 @@ class TestAuditEvent:
 
     def test_to_json(self):
         """Test converting event to JSON."""
-        event = AuditEvent(
-            event_type=EventType.TASK_FAILED,
-            task_id="test_task"
-        )
+        event = AuditEvent(event_type=EventType.TASK_FAILED, task_id="test_task")
 
         json_str = event.to_json()
 
@@ -59,10 +51,7 @@ class TestAuditLogger:
     def test_log_event(self):
         """Test logging audit event."""
         logger = AuditLogger()
-        event = AuditEvent(
-            event_type=EventType.TASK_STARTED,
-            task_id="test_task"
-        )
+        event = AuditEvent(event_type=EventType.TASK_STARTED, task_id="test_task")
 
         logger.log_event(event)
 

@@ -136,6 +136,15 @@ class Settings(BaseSettings):
     partner_max_rev_share_pct: float = Field(24.9, ge=0.0, le=24.9)
     partner_default_rev_share_pct: float = Field(20.0, ge=0.0, le=24.9)
 
+    # ─── API server ──────────────────────────────────────────────────
+    # Shared secret sent in `X-API-Key` header by data-feed API callers.
+    # Leave blank to disable key enforcement (useful in development).
+    api_key: SecretStr = SecretStr("")
+    # Bind address for the API server. Defaults to localhost for safety;
+    # set to 0.0.0.0 (or the Docker service name) in production/compose.
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
+
     # ─── Env ─────────────────────────────────────────────────────────
     environment: Literal["development", "ci", "staging", "production"] = "production"
     log_level: str = "INFO"

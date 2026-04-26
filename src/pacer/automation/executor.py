@@ -43,9 +43,7 @@ class TaskExecutor:
         self._executor = None
         self._active_tasks.clear()
 
-    def submit(
-        self, task: AutomationTask, *args: Any, **kwargs: Any
-    ) -> Future[TaskResult]:
+    def submit(self, task: AutomationTask, *args: Any, **kwargs: Any) -> Future[TaskResult]:
         """
         Submit task for execution.
 
