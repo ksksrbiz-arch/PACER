@@ -38,6 +38,7 @@ class TestAutomationTask:
 
     def test_successful_execution(self):
         """Test successful task execution."""
+
         def sample_func():
             return "success"
 
@@ -50,6 +51,7 @@ class TestAutomationTask:
 
     def test_failed_execution(self):
         """Test failed task execution."""
+
         def failing_func():
             raise ValueError("Test error")
 
@@ -72,9 +74,7 @@ class TestAutomationTask:
                 raise ValueError("Temporary error")
             return "success"
 
-        config = TaskConfig(
-            retry_policy=RetryPolicy(max_attempts=3, base_delay=0.01)
-        )
+        config = TaskConfig(retry_policy=RetryPolicy(max_attempts=3, base_delay=0.01))
         task = AutomationTask("test_task", config=config, func=unstable_func)
         result = task.execute()
 
@@ -84,12 +84,11 @@ class TestAutomationTask:
 
     def test_all_retries_exhausted(self):
         """Test behavior when all retries are exhausted."""
+
         def always_failing():
             raise ValueError("Permanent error")
 
-        config = TaskConfig(
-            retry_policy=RetryPolicy(max_attempts=2, base_delay=0.01)
-        )
+        config = TaskConfig(retry_policy=RetryPolicy(max_attempts=2, base_delay=0.01))
         task = AutomationTask("test_task", config=config, func=always_failing)
         result = task.execute()
 
@@ -99,13 +98,11 @@ class TestAutomationTask:
 
     def test_circuit_breaker_prevents_execution(self):
         """Test circuit breaker blocks execution when open."""
+
         def failing_func():
             raise ValueError("Error")
 
-        config = TaskConfig(
-            retry_policy=RetryPolicy(max_attempts=1),
-            enable_circuit_breaker=True
-        )
+        config = TaskConfig(retry_policy=RetryPolicy(max_attempts=1), enable_circuit_breaker=True)
         task = AutomationTask("test_task", config=config, func=failing_func)
 
         # Open the circuit by recording failures
@@ -118,6 +115,7 @@ class TestAutomationTask:
 
     def test_task_with_arguments(self):
         """Test task execution with arguments."""
+
         def add_func(a, b):
             return a + b
 
@@ -129,6 +127,7 @@ class TestAutomationTask:
 
     def test_task_with_kwargs(self):
         """Test task execution with keyword arguments."""
+
         def greet_func(name, greeting="Hello"):
             return f"{greeting}, {name}!"
 
@@ -174,10 +173,7 @@ class TestTaskExecutor:
         def task_func(x):
             return x * 2
 
-        tasks = [
-            AutomationTask(f"task_{i}", func=lambda i=i: task_func(i))
-            for i in range(5)
-        ]
+        tasks = [AutomationTask(f"task_{i}", func=lambda i=i: task_func(i)) for i in range(5)]
 
         with TaskExecutor(max_workers=3) as executor:
             results = executor.execute_batch(tasks)

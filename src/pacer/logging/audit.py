@@ -109,9 +109,7 @@ class AuditLogger:
         except Exception as e:
             logger.error("audit_log_write_failed", error=str(e))
 
-    def log_task_started(
-        self, task_id: str, config: dict[str, Any] | None = None
-    ) -> None:
+    def log_task_started(self, task_id: str, config: dict[str, Any] | None = None) -> None:
         """Log task start event."""
         event = AuditEvent(
             event_type=EventType.TASK_STARTED,
@@ -120,9 +118,7 @@ class AuditLogger:
         )
         self.log_event(event)
 
-    def log_task_completed(
-        self, task_id: str, duration: float, attempts: int
-    ) -> None:
+    def log_task_completed(self, task_id: str, duration: float, attempts: int) -> None:
         """Log task completion event."""
         event = AuditEvent(
             event_type=EventType.TASK_COMPLETED,
@@ -131,9 +127,7 @@ class AuditLogger:
         )
         self.log_event(event)
 
-    def log_task_failed(
-        self, task_id: str, error: str, attempts: int
-    ) -> None:
+    def log_task_failed(self, task_id: str, error: str, attempts: int) -> None:
         """Log task failure event."""
         event = AuditEvent(
             event_type=EventType.TASK_FAILED,
@@ -142,9 +136,7 @@ class AuditLogger:
         )
         self.log_event(event)
 
-    def log_task_retried(
-        self, task_id: str, attempt: int, wait_time: float
-    ) -> None:
+    def log_task_retried(self, task_id: str, attempt: int, wait_time: float) -> None:
         """Log task retry event."""
         event = AuditEvent(
             event_type=EventType.TASK_RETRIED,
