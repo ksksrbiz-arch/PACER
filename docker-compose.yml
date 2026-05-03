@@ -35,7 +35,8 @@ services:
         condition: service_started
     volumes:
       - ./logs:/app/logs
-    command: ["python", "-m", "pacer.main"]
+    entrypoint: []
+    command: ["python", "-m", "pacer.main", "schedule"]
 
 volumes:
   pacer_pg:

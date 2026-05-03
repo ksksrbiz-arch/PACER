@@ -15,6 +15,7 @@ Usage
     poetry run pacer schedule           # start APScheduler and block
     poetry run pacer status             # print pipeline/state counts
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -77,6 +78,34 @@ async def _run_discovery() -> dict[str, int | str]:
 
 
 # ─────────────────────────── routing ────────────────────────────
+async def _persist_candidates(candidates: list[DomainCandidate]) -> int:
+    """Merge in-memory status + monetization mutations back to the DB.
+
+    Routing stages (`submit_backorders`, `activate_parking`) mutate the
+    candidate in memory. Without this write-back, mid-run crashes lose
+    the pipeline's work. Matches the pattern used in scoring.engine.
+    """
+    if not candidates:
+        return 0
+    persisted = 0
+    async with session_scope() as sess:
+        for c in candidates:
+            existing = (
+                await sess.execute(
+                    select(DomainCandidate).where(DomainCandidate.domain == c.domain)
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                continue
+            existing.status = c.status
+            if c.monetization_strategy is not None:
+                existing.monetization_strategy = c.monetization_strategy
+            if c.caught_by_registrar is not None:
+                existing.caught_by_registrar = c.caught_by_registrar
+            persisted += 1
+    return persisted
+
+
 async def _route_by_score() -> dict[str, int]:
     """Pull newly-scored candidates and dispatch them by score band."""
     dropcatch_thr = settings.score_threshold_dropcatch
@@ -94,23 +123,18 @@ async def _route_by_score() -> dict[str, int]:
     dc_tasks = [submit_backorders(c) for c in high]
     dc_results = await asyncio.gather(*dc_tasks, return_exceptions=True)
     dc_ok = sum(1 for r in dc_results if not isinstance(r, Exception))
+    await _persist_candidates([c for c in high if c.status != Status.SCORED])
 
     # Parking / affiliate
     park_tasks = [activate_parking(c) for c in mid]
     park_results = await asyncio.gather(*park_tasks, return_exceptions=True)
     park_ok = sum(1 for r in park_results if not isinstance(r, Exception))
+    await _persist_candidates([c for c in mid if c.status != Status.SCORED])
 
     # Discard low-score candidates
-    if low:
-        async with session_scope() as sess:
-            for c in low:
-                existing = (
-                    await sess.execute(
-                        select(DomainCandidate).where(DomainCandidate.domain == c.domain)
-                    )
-                ).scalar_one_or_none()
-                if existing is not None:
-                    existing.status = Status.DISCARDED
+    for c in low:
+        c.status = Status.DISCARDED
+    await _persist_candidates(low)
 
     return {
         "dropcatch_queued": dc_ok,
@@ -226,11 +250,15 @@ async def _run_scheduler() -> None:
         settings.schedule_cron_hour,
         settings.schedule_cron_minute,
     )
+    stop_event = asyncio.Event()
     try:
-        # Block forever
-        while True:
-            await asyncio.sleep(3600)
+        # Block until cancelled (SIGINT/SIGTERM) — Event.wait() is the
+        # modern equivalent of loop.run_forever() and cooperates with
+        # asyncio.run()'s cancellation handling.
+        await stop_event.wait()
     except (KeyboardInterrupt, asyncio.CancelledError):  # pragma: no cover
+        pass
+    finally:  # pragma: no cover
         scheduler.shutdown(wait=False)
         logger.info("scheduler_stopped")
 
@@ -268,7 +296,6 @@ def cmd_version() -> None:
         click.echo(version("pacer"))
     except PackageNotFoundError:
         click.echo("pacer (dev)")
-
 
 
 # ─────────────────────────── developer UI ────────────────────────────────
@@ -328,12 +355,85 @@ def cmd_dev_deploy() -> None:
     show_deploy_flow()
 
 
+@cmd_dev.command("health")
+def cmd_dev_health() -> None:
+    """Operator health check: DB probe + scheduler/LLM/key inventory."""
+    from pacer.ui.dashboard import show_health_check
+
+    asyncio.run(show_health_check())
+
+
+@cmd_dev.command("monetize")
+@click.argument("domain")
+@click.option(
+    "--tier",
+    required=True,
+    type=click.Choice(
+        ["auction_bin", "lease_to_own", "301_redirect", "parking", "aftermarket"],
+        case_sensitive=False,
+    ),
+    help="Pin the synthetic candidate's scoring profile to this tier.",
+)
+@click.option(
+    "--persist",
+    is_flag=True,
+    default=False,
+    help="Upsert the synthetic candidate into the DB (off by default = pure dry-run).",
+)
+def cmd_dev_monetize(domain: str, tier: str, persist: bool) -> None:
+    """Rich-panel dry-run of the monetization router for DOMAIN at TIER."""
+    from pacer.ui.dashboard import monetize_dry_run
+
+    asyncio.run(monetize_dry_run(domain, tier, persist=persist))
+
+
+@cmd_dev.command("partners")
+def cmd_dev_partners() -> None:
+    """Partner roster + YTD payout summary + 1099-NEC + CTA/BOI flags."""
+    from pacer.ui.dashboard import show_partners_summary
+
+    asyncio.run(show_partners_summary())
+
+
+# ─────────────────────────── API server ──────────────────────────────────────
+
+
+@cli.group("api")
+def cmd_api() -> None:
+    """REST API server for Tier-1 data-licensing feed."""
+
+
+@cmd_api.command("serve")
+@click.option("--host", default=None, help="Bind address (default: settings.api_host).")
+@click.option("--port", default=None, type=int, help="TCP port (default: settings.api_port).")
+@click.option(
+    "--reload",
+    is_flag=True,
+    default=False,
+    help="Enable auto-reload (development only).",
+)
+def cmd_api_serve(host: str | None, port: int | None, reload: bool) -> None:
+    """Start the PACER signal-feed API server (blocking)."""
+    import uvicorn
+
+    from pacer.api.app import app  # noqa: PLC0415
+
+    _host = host or settings.api_host
+    _port = port or settings.api_port
+    logger.info("api_serve_start host={} port={} reload={}", _host, _port, reload)
+    uvicorn.run(app, host=_host, port=_port, reload=reload)
+
+
 # ─────────────────────────── business subgroups ─────────────────────
 # Imported at module bottom so the subgroups attach after the root `cli`
 # is fully defined. Keeps subgroup code out of main.py.
+from pacer.cli.monetization import cmd_monetization  # noqa: E402
 from pacer.cli.partners import cmd_partners  # noqa: E402
+from pacer.cli.revenue import cmd_revenue  # noqa: E402
 
+cli.add_command(cmd_monetization)
 cli.add_command(cmd_partners)
+cli.add_command(cmd_revenue)
 
 
 if __name__ == "__main__":  # pragma: no cover

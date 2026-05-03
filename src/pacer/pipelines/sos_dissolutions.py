@@ -4,6 +4,7 @@ Covers OR, CA, DE, NY, TX. Most states expose a business-entity search with a
 "status=inactive|dissolved|revoked" filter. Where a machine-readable feed is
 unavailable, we scrape the public portal with a polite rate limit.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -13,7 +14,7 @@ from loguru import logger
 from pacer.enrichment.company_resolver import resolve_domain
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from pacer.pipelines._common import upsert_candidates
-from pacer.utils.api_resilience import build_client, resilient_api
+from pacer.utils.api_resilience import resilient_api
 
 STATES = ("OR", "CA", "DE", "NY", "TX")
 

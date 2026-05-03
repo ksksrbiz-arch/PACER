@@ -1,4 +1,5 @@
 """Six discovery pipelines, all returning DomainCandidate records."""
+
 from pacer.pipelines.edgar import run_edgar
 from pacer.pipelines.pacer_recap import run_pacer_recap
 from pacer.pipelines.probate import run_probate

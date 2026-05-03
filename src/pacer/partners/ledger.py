@@ -14,11 +14,12 @@ domain_candidate via FK lets us drop a reporting query like
 ``SELECT SUM(partner_cents) WHERE partner_id=? AND period_start>=?`` for
 annual 1099-NEC summaries.
 """
+
 from __future__ import annotations
 
 import enum
+from collections.abc import Iterable
 from datetime import date
-from typing import Iterable
 
 from sqlalchemy import (
     CheckConstraint,
@@ -179,9 +180,7 @@ class PayoutLedger:
         Raises ValueError on illegal transition (e.g. voided → paid).
         """
         if entry.status != PayoutStatus.PENDING:
-            raise ValueError(
-                f"cannot mark entry id={entry.id} paid from status={entry.status}"
-            )
+            raise ValueError(f"cannot mark entry id={entry.id} paid from status={entry.status}")
         entry.status = PayoutStatus.PAID
         entry.paid_at = paid_on
         entry.payment_ref = payment_ref
@@ -191,9 +190,7 @@ class PayoutLedger:
     async def void(self, entry: PayoutEntry, reason: str) -> PayoutEntry:
         """Void a pending entry (clawback, dispute, etc)."""
         if entry.status == PayoutStatus.PAID:
-            raise ValueError(
-                f"cannot void already-paid entry id={entry.id}; issue a reversal"
-            )
+            raise ValueError(f"cannot void already-paid entry id={entry.id}; issue a reversal")
         entry.status = PayoutStatus.VOIDED
         entry.notes = (entry.notes or "") + f"\nVOID: {reason}"
         await self._session.flush()

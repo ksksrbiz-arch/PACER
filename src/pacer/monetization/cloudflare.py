@@ -34,6 +34,7 @@ Cloudflare, dashboard or registrar creates the zone, we write the redirect
 rule). Zone creation / DNS automation is a v2 concern -- we don't want to
 accidentally spin up unpaid zones during a dry-run.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -218,9 +219,7 @@ class CloudflareRedirectClient:
 
             # 3. PUT the merged ruleset back
             try:
-                resp = await client.put(
-                    url, headers=_auth_headers(self._token), json=payload
-                )
+                resp = await client.put(url, headers=_auth_headers(self._token), json=payload)
             except httpx.HTTPError as exc:
                 logger.warning(
                     "cloudflare.redirect.http_error domain={} zone={} err={}",
@@ -305,7 +304,5 @@ async def configure_cloudflare_redirect(
             status="dry_run",
         )
 
-    client = CloudflareRedirectClient(
-        api_token=token, default_zone_id=settings.cloudflare_zone_id
-    )
+    client = CloudflareRedirectClient(api_token=token, default_zone_id=settings.cloudflare_zone_id)
     return await client.set_single_redirect(domain, target_url, zone_id=zid)

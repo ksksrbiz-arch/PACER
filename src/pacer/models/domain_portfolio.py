@@ -1,4 +1,5 @@
 """DomainPortfolio — owned-domain portfolio record for 1COMMERCE LLC."""
+
 from __future__ import annotations
 
 from sqlalchemy import Float, Integer, String, Text

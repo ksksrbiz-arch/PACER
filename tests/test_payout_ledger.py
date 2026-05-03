@@ -4,20 +4,20 @@ Covers the record_batch → mark_paid → void lifecycle plus DB-level CHECK
 constraint enforcement for the CTA cap. We build a tiny async SQLite
 engine per test so nothing bleeds between cases.
 """
+
 from __future__ import annotations
 
 from datetime import date
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import event
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from pacer.models.base import Base
 from pacer.partners.ledger import PayoutEntry, PayoutLedger, PayoutStatus
 from pacer.partners.models.partner import Partner, PartnerStatus
-from pacer.partners.payout import PayoutLine, compute_payout
+from pacer.partners.payout import compute_payout
+from sqlalchemy import event
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # SQLite doesn't enforce CHECK constraints on older builds by default in all
 # drivers; pysqlite does enforce them since Python 3.x bundles a modern
@@ -62,14 +62,10 @@ async def partner(session: AsyncSession) -> Partner:
 
 # --- build_entry ---------------------------------------------------------
 @pytest.mark.asyncio
-async def test_build_entry_materializes_line(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_build_entry_materializes_line(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "widget.com", 10_000)  # $100
-    entry = ledger.build_entry(
-        line, period_start=date(2026, 4, 1), period_end=date(2026, 4, 30)
-    )
+    entry = ledger.build_entry(line, period_start=date(2026, 4, 1), period_end=date(2026, 4, 30))
     assert entry.domain == "widget.com"
     assert entry.partner_cents == 2000  # 20% of $100
     assert entry.llc_cents == 8000
@@ -77,22 +73,16 @@ async def test_build_entry_materializes_line(
 
 
 @pytest.mark.asyncio
-async def test_build_entry_rejects_inverted_period(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_build_entry_rejects_inverted_period(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "x.com", 100)
     with pytest.raises(ValueError):
-        ledger.build_entry(
-            line, period_start=date(2026, 4, 30), period_end=date(2026, 4, 1)
-        )
+        ledger.build_entry(line, period_start=date(2026, 4, 30), period_end=date(2026, 4, 1))
 
 
 # --- record_batch --------------------------------------------------------
 @pytest.mark.asyncio
-async def test_record_batch_persists_entries(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_record_batch_persists_entries(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     lines = [
         compute_payout(partner.id, "a.com", 5_000),
@@ -111,9 +101,7 @@ async def test_record_batch_persists_entries(
 
 
 @pytest.mark.asyncio
-async def test_record_batch_wires_candidate_fk(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_record_batch_wires_candidate_fk(session: AsyncSession, partner: Partner) -> None:
     from pacer.models.domain_candidate import (
         DomainCandidate,
         PipelineSource,
@@ -142,9 +130,7 @@ async def test_record_batch_wires_candidate_fk(
 
 # --- mark_paid -----------------------------------------------------------
 @pytest.mark.asyncio
-async def test_mark_paid_transitions_state(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_mark_paid_transitions_state(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "x.com", 1_000)
     [entry] = await ledger.record_batch(
@@ -161,9 +147,7 @@ async def test_mark_paid_transitions_state(
 
 
 @pytest.mark.asyncio
-async def test_mark_paid_rejects_non_pending(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_mark_paid_rejects_non_pending(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "x.com", 1_000)
     [entry] = await ledger.record_batch(
@@ -179,9 +163,7 @@ async def test_mark_paid_rejects_non_pending(
 
 # --- void ----------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_void_pending_entry(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_void_pending_entry(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "x.com", 1_000)
     [entry] = await ledger.record_batch(
@@ -197,9 +179,7 @@ async def test_void_pending_entry(
 
 
 @pytest.mark.asyncio
-async def test_void_rejects_paid_entry(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_void_rejects_paid_entry(session: AsyncSession, partner: Partner) -> None:
     ledger = PayoutLedger(session)
     line = compute_payout(partner.id, "x.com", 1_000)
     [entry] = await ledger.record_batch(
@@ -215,9 +195,7 @@ async def test_void_rejects_paid_entry(
 
 # --- DB-level CHECK constraints ------------------------------------------
 @pytest.mark.asyncio
-async def test_rev_share_cta_cap_enforced_at_db(
-    session: AsyncSession, partner: Partner
-) -> None:
+async def test_rev_share_cta_cap_enforced_at_db(session: AsyncSession, partner: Partner) -> None:
     # Bypass compute_payout's validation to test the DB check directly.
     bad = PayoutEntry(
         partner_id=partner.id,

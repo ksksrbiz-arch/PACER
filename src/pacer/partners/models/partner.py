@@ -3,6 +3,7 @@
 Not an equity holder. Not a beneficial owner for CTA/BOI purposes
 (rev_share_pct capped at 24.9). See legal/partner_profit_share_agreement.md.
 """
+
 from __future__ import annotations
 
 import enum

@@ -6,6 +6,7 @@ RECAP archive (CourtListener): unlimited, no per-page PACER charges.
 We prefer RECAP for docket fetches and fall back to PCL only when RECAP lacks the
 specific docket entry we need — keeps PACER costs in the free-tier band.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -45,7 +46,7 @@ class PacerClient:
         self._pcl_token: str | None = None
 
     # ─── lifecycle ───────────────────────────────────────────────────
-    async def __aenter__(self) -> "PacerClient":
+    async def __aenter__(self) -> PacerClient:
         self._recap = build_client(
             base_url=self.RECAP_BASE,
             headers={

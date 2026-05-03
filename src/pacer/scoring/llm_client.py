@@ -9,6 +9,7 @@ On a rate-limit / overload response (HTTP 429 or 529) the client
 transparently retries the next provider in the chain so the scoring
 pipeline never stalls during Claude usage spikes.
 """
+
 from __future__ import annotations
 
 import json
@@ -164,7 +165,9 @@ async def llm_relevance_with_fallback(domain: str, company: str | None = None) -
                     exc,
                 )
                 continue
-            logger.warning("llm_call_failed provider={} domain={} err={}", provider_name, domain, exc)
+            logger.warning(
+                "llm_call_failed provider={} domain={} err={}", provider_name, domain, exc
+            )
             return {}
 
     logger.warning("llm_all_providers_failed domain={}", domain)

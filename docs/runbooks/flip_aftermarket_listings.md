@@ -59,10 +59,16 @@ Run the full pipeline with listings ENABLED on staging, compare the
 export AFTERMARKET_LISTINGS_ENABLED=true
 export $(cat /opt/pacer/.env.staging | xargs)
 
-# 2. Seed 3 test candidates at each tier (auction_bin, lease_to_own, 301)
-pacer pipeline run --limit 3 --source manual_test
+# 2. Route one synthetic candidate at each tier we care about.
+#    --no-persist keeps the staging DB clean between runs; drop it if you
+#    want the results to show up in list-recent below.
+TS=$(date +%s)
+pacer monetization route-one --domain canary-auction-${TS}.com --tier auction_bin
+pacer monetization route-one --domain canary-lto-${TS}.com     --tier lease_to_own
+pacer monetization route-one --domain canary-301-${TS}.com     --tier 301_redirect
 
-# 3. Capture results
+# 3. Capture results (persisted rows only). If you ran with --no-persist
+#    above, grab the per-command JSON instead and skip this step.
 pacer monetization list-recent --since '1 hour ago' > /tmp/staging_listings.json
 
 # 4. Diff against last known-good dry-run

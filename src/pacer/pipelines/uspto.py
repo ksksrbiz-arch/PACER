@@ -1,4 +1,5 @@
 """Pipeline 4 — USPTO abandoned-trademarks feed (TSDR)."""
+
 from __future__ import annotations
 
 from datetime import date, timedelta

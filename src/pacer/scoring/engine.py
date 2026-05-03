@@ -13,6 +13,7 @@ Pipeline order:
 USPTO conflicts hard-stop the candidate (status=DISCARDED, score=0) so we
 don't waste Ahrefs credits or LLM tokens on a domain we can't legally catch.
 """
+
 from __future__ import annotations
 
 import math
@@ -35,9 +36,7 @@ _tm_screener = USPTOTrademarkScreener()
 async def _tm_check(candidate: DomainCandidate) -> bool:
     """Run USPTO screen; mutate candidate with verdict. Return True on conflict."""
     try:
-        verdict = await _tm_screener.check(
-            candidate.domain, category=_categorize(candidate)
-        )
+        verdict = await _tm_screener.check(candidate.domain, category=_categorize(candidate))
     except Exception as exc:  # defensive — screener already degrades internally
         logger.warning("tm_screen_unexpected_error domain={} err={}", candidate.domain, exc)
         candidate.tm_conflict = None

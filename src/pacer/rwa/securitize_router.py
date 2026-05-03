@@ -2,6 +2,7 @@
 money-transmitter exemption by routing fractional sales through Securitize,
 a registered transfer agent + broker-dealer custodian.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ class SecuritizeRouter:
     def __init__(self) -> None:
         self._client = None
 
-    async def __aenter__(self) -> "SecuritizeRouter":
+    async def __aenter__(self) -> SecuritizeRouter:
         self._client = build_client(
             base_url=settings.securitize_api_url,
             headers={
@@ -78,7 +79,9 @@ class SecuritizeRouter:
             token_id=token.token_id,
             status=data.get("status", "pending"),
         )
-        logger.info("securitize_offering_created domain={} id={}", token.domain, offering.offering_id)
+        logger.info(
+            "securitize_offering_created domain={} id={}", token.domain, offering.offering_id
+        )
         return offering
 
 

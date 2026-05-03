@@ -2,6 +2,7 @@
 
 Scans recent 8-K (bankruptcy, delisting), 15-12B (deregistration), and NT filings.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta

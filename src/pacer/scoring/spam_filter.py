@@ -1,11 +1,12 @@
 """Heuristic spam / toxicity filter run before LLM scoring to save tokens."""
+
 from __future__ import annotations
 
 import re
 
 _BAD_TLDS = {".tk", ".ml", ".ga", ".cf", ".cn", ".ru", ".top", ".xyz"}
 _BAD_PATTERNS = (
-    re.compile(r"\d{4,}"),           # long digit runs
+    re.compile(r"\d{4,}"),  # long digit runs
     re.compile(r"-.{0,3}-.{0,3}-"),  # heavy hyphenation
     re.compile(r"(porn|casino|loan|viagra|cbd)", re.I),
 )

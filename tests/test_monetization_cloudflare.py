@@ -1,4 +1,5 @@
 """Tests for Cloudflare auto-301 client."""
+
 from __future__ import annotations
 
 import json
@@ -6,8 +7,6 @@ import json
 import httpx
 import pytest
 import respx
-from pydantic import SecretStr
-
 from pacer.config import Settings, get_settings
 from pacer.monetization.cloudflare import (
     CLOUDFLARE_API_BASE,
@@ -20,7 +19,7 @@ from pacer.monetization.cloudflare import (
     _rule_description,
     configure_cloudflare_redirect,
 )
-
+from pydantic import SecretStr
 
 def _entrypoint_url(zone: str) -> str:
     return (
@@ -130,9 +129,7 @@ async def test_client_installs_first_rule_when_zone_empty():
     )
 
     client = CloudflareRedirectClient(api_token="tok-123", default_zone_id=zone)
-    result = await client.set_single_redirect(
-        "example.com", "https://1commercesolutions.com/tools"
-    )
+    result = await client.set_single_redirect("example.com", "https://1commercesolutions.com/tools")
 
     assert put_route.called
     req = put_route.calls[0].request
@@ -245,9 +242,7 @@ async def test_client_returns_error_on_get_5xx():
 @pytest.mark.asyncio
 async def test_client_errors_when_no_zone():
     client = CloudflareRedirectClient(api_token="tok", default_zone_id="")
-    result = await client.set_single_redirect(
-        "example.com", "https://1commercesolutions.com/"
-    )
+    result = await client.set_single_redirect("example.com", "https://1commercesolutions.com/")
     assert result.status == "error"
     assert "zone" in (result.error or "").lower()
 

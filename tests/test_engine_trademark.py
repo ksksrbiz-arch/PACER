@@ -4,12 +4,12 @@ Verifies a TM conflict discards a candidate before Ahrefs/LLM are called.
 We patch the module-level screener and the batch_metrics / llm_relevance
 functions so nothing hits the network.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
 import pytest
-
 from pacer.models.domain_candidate import (
     DomainCandidate,
     PipelineSource,

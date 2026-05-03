@@ -12,6 +12,7 @@ The resolved URL is written back to ``candidate.redirect_target`` and
 ``candidate.monetization_strategy`` by the :func:`configure_redirect` helper
 so the existing pipeline interface is unchanged.
 """
+
 from __future__ import annotations
 
 import httpx

@@ -2,6 +2,7 @@
 
 Aggregates from state UCC-1 filings + CourtListener civil judgment search.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta

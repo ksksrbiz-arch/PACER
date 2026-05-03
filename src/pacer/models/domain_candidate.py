@@ -1,4 +1,5 @@
 """DomainCandidate — the central pipeline record."""
+
 from __future__ import annotations
 
 import enum
@@ -66,9 +67,7 @@ class DomainCandidate(Base, TimestampMixin):
     llc_entity: Mapped[str] = mapped_column(String(128), nullable=False, default="1COMMERCE LLC")
 
     # Lifecycle
-    status: Mapped[Status] = mapped_column(
-        Enum(Status), nullable=False, default=Status.DISCOVERED
-    )
+    status: Mapped[Status] = mapped_column(Enum(Status), nullable=False, default=Status.DISCOVERED)
 
     # Scoring
     score: Mapped[float | None] = mapped_column(Float)

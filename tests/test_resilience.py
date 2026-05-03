@@ -1,4 +1,5 @@
 """Tests for the shared resilience decorator + circuit breaker."""
+
 from __future__ import annotations
 
 import time
@@ -6,7 +7,6 @@ import time
 import httpx
 import pytest
 import respx
-
 from pacer.utils.api_resilience import (
     CircuitBreaker,
     CircuitOpenError,
@@ -82,8 +82,10 @@ async def test_resilient_api_fails_fast_on_401():
     with route:
         with pytest.raises(httpx.HTTPStatusError):
             await call()
-    # Should not have retried — respx mock counts only one call
-    assert route.routes[0].call_count == 1
+        # Should not have retried — respx mock counts only one call.
+        # Must be asserted inside the `with route:` block because respx
+        # resets its routers on exit.
+        assert route.routes[0].call_count == 1
 
 
 @pytest.mark.asyncio

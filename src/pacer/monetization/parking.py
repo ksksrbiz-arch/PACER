@@ -1,4 +1,5 @@
 """Parking & affiliate activation for caught domains below the drop-catch threshold."""
+
 from __future__ import annotations
 
 from loguru import logger

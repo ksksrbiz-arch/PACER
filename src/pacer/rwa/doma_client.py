@@ -1,4 +1,5 @@
 """Doma Protocol client — DOT (whole-domain token) and DST (fractional)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ class DomaClient:
     def __init__(self) -> None:
         self._client = None
 
-    async def __aenter__(self) -> "DomaClient":
+    async def __aenter__(self) -> DomaClient:
         self._client = build_client(
             base_url=settings.doma_api_url,
             headers={
@@ -66,9 +67,7 @@ class DomaClient:
         )
 
     @resilient_api(endpoint="doma.mint_dst")
-    async def mint_dst(
-        self, domain: str, total_supply: int, reserve_price_wei: str
-    ) -> DomaToken:
+    async def mint_dst(self, domain: str, total_supply: int, reserve_price_wei: str) -> DomaToken:
         """Mint fractional DST shares — MUST flow through Securitize for DFR exemption."""
         assert self._client is not None
         resp = await self._client.post(

@@ -32,6 +32,7 @@ Category inference (keyword-driven, cheap; upgrade to LLM later if needed):
 The resolved URL is written to ``candidate.redirect_target`` so the
 drop-catch registrar can configure forwarding once the domain registers.
 """
+
 from __future__ import annotations
 
 import re
@@ -66,24 +67,55 @@ TARGET_MAP: dict[str, str] = {
 
 CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "saas_alternative": [
-        "saas", "platform", "cloud", "software", "api",
-        "dashboard", "analytics", "crm", "erp",
+        "saas",
+        "platform",
+        "cloud",
+        "software",
+        "api",
+        "dashboard",
+        "analytics",
+        "crm",
+        "erp",
     ],
     "tool_replacement": [
-        "tool", "generator", "builder", "editor", "converter",
-        "calculator", "tracker", "manager",
+        "tool",
+        "generator",
+        "builder",
+        "editor",
+        "converter",
+        "calculator",
+        "tracker",
+        "manager",
     ],
     "ecommerce": [
-        "shop", "store", "commerce", "marketplace", "cart",
-        "checkout", "merchant", "retail",
+        "shop",
+        "store",
+        "commerce",
+        "marketplace",
+        "cart",
+        "checkout",
+        "merchant",
+        "retail",
     ],
     "educational": [
-        "learn", "course", "academy", "tutorial", "training",
-        "bootcamp", "education", "university",
+        "learn",
+        "course",
+        "academy",
+        "tutorial",
+        "training",
+        "bootcamp",
+        "education",
+        "university",
     ],
     "international": [
-        "global", "world", "international", "europe", "asia",
-        "uk", "eu", "trade",
+        "global",
+        "world",
+        "international",
+        "europe",
+        "asia",
+        "uk",
+        "eu",
+        "trade",
     ],
 }
 
@@ -141,8 +173,7 @@ def yield_score(candidate: DomainCandidate) -> float:
     authority = float(candidate.domain_rating or 0.0)
     commercial = _commercial_component(candidate)
     return round(
-        settings.epmv_authority_weight * authority
-        + settings.epmv_commercial_weight * commercial,
+        settings.epmv_authority_weight * authority + settings.epmv_commercial_weight * commercial,
         2,
     )
 
@@ -247,16 +278,20 @@ class MonetizationRouter:
 
         if strategy == "auction_bin":
             candidate.auction_listing_url = AFTERNIC_BIN_URL.format(domain=candidate.domain)
+            candidate.lease_to_own_enabled = False
         elif strategy == "lease_to_own":
             candidate.lease_to_own_enabled = True
             candidate.auction_listing_url = DAN_LTO_URL.format(domain=candidate.domain)
             candidate.lease_monthly_price_cents = _estimate_monthly_lto_cents(candidate)
+        else:
+            # Normalize LTO flag on non-LTO paths so callers can rely on it
+            # without depending on the DB INSERT default having fired.
+            candidate.lease_to_own_enabled = False
 
         candidate.status = Status.MONETIZED
 
         logger.info(
-            "monetization.route domain={} score={} yield={} strategy={} "
-            "category={} target={}",
+            "monetization.route domain={} score={} yield={} strategy={} " "category={} target={}",
             candidate.domain,
             candidate.score,
             ys,
@@ -266,15 +301,11 @@ class MonetizationRouter:
         )
         return candidate
 
-    def route_batch(
-        self, candidates: list[DomainCandidate]
-    ) -> list[DomainCandidate]:
+    def route_batch(self, candidates: list[DomainCandidate]) -> list[DomainCandidate]:
         """Route a batch -- no concurrency needed, pure CPU."""
         return [self.route(c) for c in candidates]
 
-    async def route_and_list(
-        self, candidate: DomainCandidate
-    ) -> DomainCandidate:
+    async def route_and_list(self, candidate: DomainCandidate) -> DomainCandidate:
         """Route + actually POST aftermarket listings for auction/LTO tiers.
 
         The sync :meth:`route` is CPU-only (strategy + URL computation); this
@@ -299,13 +330,11 @@ class MonetizationRouter:
 
         # 301/parking tiers: write Cloudflare redirect rule for redirect_target.
         # auction_bin / lease_to_own skip this — they list instead of redirect.
-        if (
-            candidate.redirect_target
-            and candidate.monetization_strategy in {"301_redirect", "parking"}
-        ):
-            cf = await configure_cloudflare_redirect(
-                candidate.domain, candidate.redirect_target
-            )
+        if candidate.redirect_target and candidate.monetization_strategy in {
+            "301_redirect",
+            "parking",
+        }:
+            cf = await configure_cloudflare_redirect(candidate.domain, candidate.redirect_target)
             logger.info(
                 "router.cloudflare_redirect domain={} status={} ruleset={}",
                 candidate.domain,

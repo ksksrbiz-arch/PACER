@@ -1,4 +1,5 @@
 """Out-of-band alerting channels (Slack, etc.)."""
+
 from pacer.alerts.slack import (
     alert_pipeline_complete,
     alert_pipeline_error,

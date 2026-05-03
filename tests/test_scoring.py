@@ -1,10 +1,10 @@
 """Tests for spam filter + scoring weights."""
+
 from __future__ import annotations
 
 import math
 
 import pytest
-
 from pacer.models.domain_candidate import DomainCandidate, PipelineSource, Status
 from pacer.scoring.ahrefs import AhrefsMetrics
 from pacer.scoring.engine import _score_one
@@ -17,10 +17,10 @@ from pacer.scoring.spam_filter import is_likely_spam, spam_score
     [
         ("legitcorp.com", False),
         ("example.io", False),
-        ("sketchy-offer.tk", True),   # bad TLD
-        ("promo123456.com", True),    # long digit run
-        ("a-b-c-d.com", True),        # heavy hyphenation
-        ("best-casino.com", True),    # bad keyword
+        ("sketchy-offer.tk", True),  # bad TLD
+        ("promo123456.com", True),  # long digit run
+        ("a-b-c-d.com", True),  # heavy hyphenation
+        ("best-casino.com", True),  # bad keyword
         ("clean-domain.ai", False),
     ],
 )
@@ -54,7 +54,11 @@ async def test_score_one_weights_match_spec(monkeypatch):
         company_name="Acme Corp",
     )
 
-    metrics = {"acme.com": AhrefsMetrics(domain="acme.com", domain_rating=50, backlinks=200, referring_domains=100)}
+    metrics = {
+        "acme.com": AhrefsMetrics(
+            domain="acme.com", domain_rating=50, backlinks=200, referring_domains=100
+        )
+    }
     scored = await _score_one(c, metrics)
 
     # Expected:
@@ -63,7 +67,9 @@ async def test_score_one_weights_match_spec(monkeypatch):
     #   0.20 * 80                     = 16.0
     #   0.10 * 70                     = 7.0
     #   0.10 * (1 - 0.0) * 100        = 10.0
-    expected = 0.40 * 50 + 0.20 * min(math.log10(101) * 20, 100) + 0.20 * 80 + 0.10 * 70 + 0.10 * 100
+    expected = (
+        0.40 * 50 + 0.20 * min(math.log10(101) * 20, 100) + 0.20 * 80 + 0.10 * 70 + 0.10 * 100
+    )
     assert scored.score == round(expected, 2)
     assert scored.status == Status.SCORED
     assert scored.domain_rating == 50
@@ -84,7 +90,11 @@ async def test_score_one_skips_llm_when_dr_below_10(monkeypatch):
     monkeypatch.setattr(engine, "llm_relevance", fake_llm)
 
     c = DomainCandidate(domain="weak.com", source=PipelineSource.EDGAR, status=Status.DISCOVERED)
-    metrics = {"weak.com": AhrefsMetrics(domain="weak.com", domain_rating=3, backlinks=0, referring_domains=0)}
+    metrics = {
+        "weak.com": AhrefsMetrics(
+            domain="weak.com", domain_rating=3, backlinks=0, referring_domains=0
+        )
+    }
     scored = await _score_one(c, metrics)
 
     assert calls["n"] == 0

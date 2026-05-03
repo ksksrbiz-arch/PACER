@@ -1,4 +1,5 @@
 """Shared resilience decorator — retries, circuit breaker, Retry-After, compliance log."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,14 +7,14 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 import httpx
 from loguru import logger
 from tenacity import (
     AsyncRetrying,
     RetryError,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential_jitter,
 )
@@ -76,6 +77,17 @@ TRANSIENT = (
     httpx.RemoteProtocolError,
 )
 
+NON_RETRYABLE_STATUSES = (400, 401, 403, 404)
+
+
+def _should_retry(exc: BaseException) -> bool:
+    """Retry on transient network errors and retryable HTTP statuses only."""
+    if isinstance(exc, TRANSIENT):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code not in NON_RETRYABLE_STATUSES
+    return False
+
 
 def resilient_api(
     *,
@@ -103,7 +115,7 @@ def resilient_api(
                 async for attempt in AsyncRetrying(
                     stop=stop_after_attempt(max_attempts),
                     wait=wait_exponential_jitter(initial=min_wait, max=max_wait),
-                    retry=retry_if_exception_type(TRANSIENT + (httpx.HTTPStatusError,)),
+                    retry=retry_if_exception(_should_retry),
                     reraise=True,
                 ):
                     with attempt:

@@ -1,4 +1,5 @@
 """Dynadot drop-catch backorder — primary registrar."""
+
 from __future__ import annotations
 
 from loguru import logger
