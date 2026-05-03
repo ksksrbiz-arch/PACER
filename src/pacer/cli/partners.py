@@ -75,7 +75,7 @@ class RevenueDelta:
     domain: str
     domain_candidate_id: int
     period_revenue_cents: int
-    rev_share_pct: float
+    rev_share_pct: float | None
 
 
 async def _compute_period_deltas(period_start: date, period_end: date) -> list[RevenueDelta]:
@@ -97,11 +97,13 @@ async def _compute_period_deltas(period_start: date, period_end: date) -> list[R
         )
         candidates: list[DomainCandidate] = list((await sess.execute(cand_stmt)).scalars().all())
 
-        # Sum of already-ledgered revenue per (partner_id, domain) across all
-        # prior periods ending before this period_start. "Prior" means the
-        # entry's period_end < period_start so same-month reruns are idempotent
-        # on the ledger layer — you can re-run a month and net delta will be 0
-        # for candidates already captured.
+        # Sum of already-ledgered revenue per (partner_id, domain) for every
+        # period whose start is on/before the current period's end. This
+        # includes both prior periods AND any existing entries for the
+        # current period, so same-month reruns are idempotent: re-running
+        # April after persisting will net delta=0 for candidates already
+        # captured (and any NEW revenue since the first run will correctly
+        # flow through as a top-up delta).
         prior_stmt = (
             select(
                 PayoutEntry.partner_id,
@@ -110,7 +112,7 @@ async def _compute_period_deltas(period_start: date, period_end: date) -> list[R
             )
             .where(
                 and_(
-                    PayoutEntry.period_end < period_start,
+                    PayoutEntry.period_start <= period_end,
                     PayoutEntry.status != PayoutStatus.VOIDED,
                 )
             )
@@ -133,7 +135,13 @@ async def _compute_period_deltas(period_start: date, period_end: date) -> list[R
                 domain=c.domain,
                 domain_candidate_id=c.id,
                 period_revenue_cents=delta_cents,
-                rev_share_pct=float(c.partner_rev_share_pct or 0.0) or None,  # type: ignore[assignment]
+                # None means "use settings default"; explicit 0.0 is a legit
+                # override (flat-fee / equity-deal domains) and must survive.
+                rev_share_pct=(
+                    float(c.partner_rev_share_pct)
+                    if c.partner_rev_share_pct is not None
+                    else None  # type: ignore[arg-type]
+                ),
             )
         )
     return deltas
