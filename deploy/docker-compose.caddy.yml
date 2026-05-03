@@ -1,0 +1,38 @@
+# Overlay compose file - adds Caddy reverse proxy in front of pacer-web.
+# Use as an overlay alongside the main docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.caddy.yml up -d
+#
+# This intentionally does NOT modify pacer-web's port mapping. pacer-web stays
+# on 127.0.0.1:8080 (localhost-only) so direct access is preserved during
+# debugging while Caddy fronts the public 80/443 traffic via the compose
+# network using the service name.
+#
+# Required .env keys (validated on `up`):
+#   PACER_DOMAIN          (e.g. pacer.1commercesolutions.com)
+#   LETSENCRYPT_EMAIL     (ACME contact)
+#   PACER_BASIC_USER      (operator username for HTTP basic auth)
+#   PACER_BASIC_HASH      (bcrypt hash; see deploy/Caddyfile for generation)
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    depends_on:
+      - pacer-web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PACER_DOMAIN: ${PACER_DOMAIN:?set PACER_DOMAIN in .env}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}
+      PACER_BASIC_USER: ${PACER_BASIC_USER:?set PACER_BASIC_USER in .env}
+      PACER_BASIC_HASH: ${PACER_BASIC_HASH:?set PACER_BASIC_HASH in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

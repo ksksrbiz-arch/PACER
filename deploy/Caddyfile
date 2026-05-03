@@ -1,0 +1,58 @@
+# PACER · Caddy reverse proxy with auto-TLS.
+# Fronts the existing `pacer-web` service (FastAPI + Jinja2 dashboard).
+#
+# Usage:
+#   1. DNS A record for $PACER_DOMAIN -> VPS public IP
+#   2. docker compose -f docker-compose.yml -f deploy/docker-compose.caddy.yml up -d
+#   3. Caddy obtains a Let's Encrypt cert on first request to the hostname.
+#
+# Notes:
+#   - pacer-web binds 127.0.0.1:8080 in docker-compose.yml; Caddy reaches it
+#     via the compose network using the service name (pacer-web:8080).
+#   - pacer-web is no-auth by design (assumes private network). Caddy adds:
+#       basic_auth gate (PACER_BASIC_USER / PACER_BASIC_HASH)
+#       strict CSP + HSTS + frame-deny
+#       host-header pinning to mitigate misrouted ACME challenges
+{
+    email {$LETSENCRYPT_EMAIL}
+    # Uncomment for staging Let's Encrypt while debugging:
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$PACER_DOMAIN} {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # Tight CSP - pacer-web serves Jinja2 HTML + same-origin assets.
+        # Adjust if templates pull from CDNs.
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+        -Server
+    }
+
+    # Operator basic auth - htpasswd-style bcrypt hash in PACER_BASIC_HASH.
+    # Generate with:
+    #   docker run --rm caddy:2-alpine caddy hash-password --plaintext "<your-password>"
+    # Then set in .env:
+    #   PACER_BASIC_USER=keith
+    #   PACER_BASIC_HASH=$2a$14$....   (the full bcrypt string)
+    basic_auth {
+        {$PACER_BASIC_USER} {$PACER_BASIC_HASH}
+    }
+
+    reverse_proxy pacer-web:8080 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
