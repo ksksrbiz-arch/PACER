@@ -36,3 +36,7 @@ node_modules/
 *.bak
 tmp/
 .hypothesis/
+
+# Local-only secret staging — never commit
+deploy/.secrets-staging/
+deploy/.env.production
